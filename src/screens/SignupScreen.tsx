@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,30 +7,112 @@ import {
   ImageBackground,
   Image,
   Dimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Signup'>;
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const GOLD = '#D4AF37';
-const GAP  = 10;
-const PAD  = 16;
+const GAP = 10;
+const PAD = 16;
 const CARD_W = (SW - PAD * 2 - GAP) / 2;
 const CARD_H = SH * 0.52;
 
 export default function SignupScreen() {
   const navigation = useNavigation<Nav>();
-  const insets     = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
+
+  const titleAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim = useRef(new Animated.Value(0)).current;
+  const hommeGlowAnim = useRef(new Animated.Value(0)).current;
+  const femmeGlowAnim = useRef(new Animated.Value(0)).current;
+  const hommeScale = useRef(new Animated.Value(1)).current;
+  const femmeScale = useRef(new Animated.Value(1)).current;
+
+  useFocusEffect(
+    React.useCallback(() => {
+      Animated.timing(titleAnim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+
+      Animated.timing(cardsAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+
+      const createGlowLoop = (anim: Animated.Value) => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(anim, {
+              toValue: 1,
+              duration: 2000,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: true,
+            }),
+            Animated.timing(anim, {
+              toValue: 0,
+              duration: 2000,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+      };
+      createGlowLoop(hommeGlowAnim);
+      createGlowLoop(femmeGlowAnim);
+    }, [titleAnim, cardsAnim, hommeGlowAnim, femmeGlowAnim])
+  );
+
+  const handlePressHomme = () => {
+    Animated.sequence([
+      Animated.timing(hommeScale, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(hommeScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      navigation.navigate('GenderVideo', { gender: 'homme' });
+    });
+  };
+
+  const handlePressFemme = () => {
+    Animated.sequence([
+      Animated.timing(femmeScale, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(femmeScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      navigation.navigate('GenderVideo', { gender: 'femme' });
+    });
+  };
 
   return (
     <View style={styles.root}>
-      {/* Full-screen background */}
       <ImageBackground
         source={require('../../assets/login.jpg')}
         style={StyleSheet.absoluteFillObject}
@@ -42,7 +124,6 @@ export default function SignupScreen() {
         />
       </ImageBackground>
 
-      {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: Math.max(14, insets.top + 4) }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -51,113 +132,192 @@ export default function SignupScreen() {
         <View style={{ width: 38 }} />
       </View>
 
-      {/* Hero text */}
-      <View style={styles.heroText}>
+      <Animated.View
+        style={[
+          styles.heroText,
+          {
+            opacity: titleAnim,
+            transform: [
+              {
+                translateY: titleAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [30, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Text style={styles.eyebrow}>— Choisissez votre parcours</Text>
         <Text style={styles.title}>Bienvenue{'\n'}dans le Temple.</Text>
-      </View>
+      </Animated.View>
 
-      {/* Side-by-side cards */}
-      <View style={[styles.cardsRow, { marginBottom: insets.bottom + 20 }]}>
-
+      <Animated.View
+        style={[
+          styles.cardsRow,
+          { marginBottom: insets.bottom + 20 },
+          {
+            opacity: cardsAnim,
+            transform: [
+              {
+                translateY: cardsAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [40, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         {/* HOMME */}
-        <TouchableOpacity
-          activeOpacity={0.88}
-          style={styles.card}
-          onPress={() => navigation.navigate('GenderVideo', { gender: 'homme' })}
-        >
-          <ImageBackground
-            source={require('../../assets/photo-1605490855119-94921710a47f.avif')}
-            style={styles.cardBg}
-            resizeMode="cover"
+        <Animated.View style={[styles.card, { transform: [{ scale: hommeScale }] }]}>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={styles.cardTouchable}
+            onPress={handlePressHomme}
           >
-            {/* Gradient: dark top + strong dark bottom */}
-            <LinearGradient
-              colors={['rgba(0,0,0,0.30)', 'transparent', 'rgba(0,0,0,0.88)']}
-              locations={[0, 0.4, 1]}
-              style={StyleSheet.absoluteFillObject}
-            />
-
-            {/* Gold border */}
-            <View style={styles.cardBorder} pointerEvents="none" />
-
-            {/* Symbol top */}
-            <View style={styles.cardSymbolWrap}>
-              <Text style={styles.cardSymbol}>♂</Text>
-            </View>
-
-            {/* Play indicator */}
-            <View style={styles.cardPlayWrap}>
-              <View style={styles.cardPlay}>
-                <Ionicons name="play" size={16} color="#fff" />
-              </View>
-            </View>
-
-            {/* Label bottom */}
-            <View style={styles.cardBottom}>
-              <Text style={styles.cardLabel}>HOMME</Text>
-              <Text style={styles.cardSub}>Force · Muscle</Text>
+            <ImageBackground
+              source={require('../../assets/photo-1605490855119-94921710a47f.avif')}
+              style={styles.cardBg}
+              resizeMode="cover"
+            >
               <LinearGradient
-                colors={[GOLD, '#b8922a']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.cardCta}
-              >
-                <Text style={styles.cardCtaText}>Commencer</Text>
-                <Ionicons name="arrow-forward" size={10} color="#000" />
-              </LinearGradient>
-            </View>
-          </ImageBackground>
-        </TouchableOpacity>
+                colors={['rgba(0,0,0,0.30)', 'transparent', 'rgba(0,0,0,0.88)']}
+                locations={[0, 0.4, 1]}
+                style={StyleSheet.absoluteFillObject}
+              />
+
+              {/* Glow effect */}
+              <Animated.View
+                style={[
+                  styles.cardGlow,
+                  {
+                    opacity: hommeGlowAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 0.6],
+                    }),
+                  },
+                ]}
+              />
+
+              <View style={styles.cardBorder} pointerEvents="none" />
+
+              <View style={styles.cardSymbolWrap}>
+                <Text style={styles.cardSymbol}>♂</Text>
+              </View>
+
+              <View style={styles.cardPlayWrap}>
+                <Animated.View
+                  style={[
+                    styles.cardPlay,
+                    {
+                      transform: [
+                        {
+                          scale: hommeGlowAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 1.1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <Ionicons name="play" size={16} color="#fff" />
+                </Animated.View>
+              </View>
+
+              <View style={styles.cardBottom}>
+                <Text style={styles.cardLabel}>HOMME</Text>
+                <Text style={styles.cardSub}>Force · Muscle</Text>
+                <LinearGradient
+                  colors={[GOLD, '#b8922a']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.cardCta}
+                >
+                  <Text style={styles.cardCtaText}>Commencer</Text>
+                  <Ionicons name="arrow-forward" size={10} color="#000" />
+                </LinearGradient>
+              </View>
+            </ImageBackground>
+          </TouchableOpacity>
+        </Animated.View>
 
         {/* FEMME */}
-        <TouchableOpacity
-          activeOpacity={0.88}
-          style={styles.card}
-          onPress={() => navigation.navigate('GenderVideo', { gender: 'femme' })}
-        >
-          <ImageBackground
-            source={require('../../assets/photo-1734630341082-0fec0e10126c.avif')}
-            style={styles.cardBg}
-            resizeMode="cover"
+        <Animated.View style={[styles.card, { transform: [{ scale: femmeScale }] }]}>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={styles.cardTouchable}
+            onPress={handlePressFemme}
           >
-            <LinearGradient
-              colors={['rgba(0,0,0,0.30)', 'transparent', 'rgba(0,0,0,0.88)']}
-              locations={[0, 0.4, 1]}
-              style={StyleSheet.absoluteFillObject}
-            />
-
-            <View style={styles.cardBorder} pointerEvents="none" />
-
-            <View style={styles.cardSymbolWrap}>
-              <Text style={styles.cardSymbol}>♀</Text>
-            </View>
-
-            <View style={styles.cardPlayWrap}>
-              <View style={styles.cardPlay}>
-                <Ionicons name="play" size={16} color="#fff" />
-              </View>
-            </View>
-
-            <View style={styles.cardBottom}>
-              <Text style={styles.cardLabel}>FEMME</Text>
-              <Text style={styles.cardSub}>Galbe · Vitalité</Text>
+            <ImageBackground
+              source={require('../../assets/photo-1734630341082-0fec0e10126c.avif')}
+              style={styles.cardBg}
+              resizeMode="cover"
+            >
               <LinearGradient
-                colors={[GOLD, '#b8922a']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.cardCta}
-              >
-                <Text style={styles.cardCtaText}>Commencer</Text>
-                <Ionicons name="arrow-forward" size={10} color="#000" />
-              </LinearGradient>
-            </View>
-          </ImageBackground>
-        </TouchableOpacity>
+                colors={['rgba(0,0,0,0.30)', 'transparent', 'rgba(0,0,0,0.88)']}
+                locations={[0, 0.4, 1]}
+                style={StyleSheet.absoluteFillObject}
+              />
 
-      </View>
+              {/* Glow effect */}
+              <Animated.View
+                style={[
+                  styles.cardGlow,
+                  {
+                    opacity: femmeGlowAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 0.6],
+                    }),
+                  },
+                ]}
+              />
 
-      {/* Bottom hint */}
+              <View style={styles.cardBorder} pointerEvents="none" />
+
+              <View style={styles.cardSymbolWrap}>
+                <Text style={styles.cardSymbol}>♀</Text>
+              </View>
+
+              <View style={styles.cardPlayWrap}>
+                <Animated.View
+                  style={[
+                    styles.cardPlay,
+                    {
+                      transform: [
+                        {
+                          scale: femmeGlowAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 1.1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <Ionicons name="play" size={16} color="#fff" />
+                </Animated.View>
+              </View>
+
+              <View style={styles.cardBottom}>
+                <Text style={styles.cardLabel}>FEMME</Text>
+                <Text style={styles.cardSub}>Galbe · Vitalité</Text>
+                <LinearGradient
+                  colors={[GOLD, '#b8922a']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.cardCta}
+                >
+                  <Text style={styles.cardCtaText}>Commencer</Text>
+                  <Ionicons name="arrow-forward" size={10} color="#000" />
+                </LinearGradient>
+              </View>
+            </ImageBackground>
+          </TouchableOpacity>
+        </Animated.View>
+      </Animated.View>
+
       <View style={[styles.hint, { paddingBottom: insets.bottom + 12 }]}>
         <Text style={styles.hintText}>Protocole scientifique · Dr en pharmacie · 10 ans d'expérience</Text>
       </View>
@@ -210,9 +370,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
+  cardTouchable: {
+    flex: 1,
+  },
   cardBg: {
     flex: 1,
     justifyContent: 'space-between',
+  },
+  cardGlow: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    backgroundColor: GOLD,
   },
   cardBorder: {
     ...StyleSheet.absoluteFillObject,
