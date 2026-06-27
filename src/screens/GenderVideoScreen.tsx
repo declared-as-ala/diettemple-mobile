@@ -11,6 +11,7 @@ import {
   Platform,
   Dimensions,
   Image,
+  Linking,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -50,15 +51,18 @@ export default function GenderVideoScreen() {
     ? 'Un programme pensé pour la femme moderne : silhouette, tonus et énergie durable.'
     : 'Programme conçu pour la transformation masculine : prise de masse, force et nutrition optimisées.';
 
-  // ── Video ──────────────────────────────────────────────────────────────
+  // ── Video & Settings ──────────────────────────────────────────────────
   const [videoUrl,    setVideoUrl]    = useState('');
   const [videoTitle,  setVideoTitle]  = useState('');
   const [videoDesc,   setVideoDesc]   = useState('');
   const [videoReady,  setVideoReady]  = useState(false);
+  const [contactPhone, setContactPhone] = useState('+216 50 123 456');
 
   useEffect(() => {
     const base     = getApiBaseUrl();
     const apiHost  = base.replace(/\/api\/?$/, '');
+
+    // Fetch video config
     fetch(`${base}/landing/videos`)
       .then(r => r.ok ? r.json() : null)
       .catch(() => null)
@@ -70,7 +74,22 @@ export default function GenderVideoScreen() {
         if (cfg?.description) setVideoDesc(cfg.description);
         setVideoReady(true);
       });
+
+    // Fetch contact phone from settings
+    fetch(`${base}/landing/settings`)
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then(data => {
+        if (data?.contactPhone) setContactPhone(data.contactPhone);
+      });
   }, [gender]);
+
+  const handleCallPress = () => {
+    const phoneUrl = `tel:${contactPhone.replace(/\s/g, '')}`;
+    Linking.openURL(phoneUrl).catch(() => {
+      console.log('Could not open phone dialer');
+    });
+  };
 
   const player = useVideoPlayer(videoUrl || null, p => {
     p.loop    = true;
@@ -182,8 +201,8 @@ export default function GenderVideoScreen() {
                   {videoDesc || defaultDesc}
                 </Text>
                 <View style={styles.playerCtas}>
-                  <TouchableOpacity style={styles.ghostBtn} onPress={() => {}}>
-                    <Ionicons name="call-outline" size={15} color="#fff" />
+                  <TouchableOpacity style={styles.ghostBtn} onPress={handleCallPress} activeOpacity={0.75}>
+                    <Ionicons name="call-outline" size={16} color={GOLD} />
                     <Text style={styles.ghostBtnText}>Appeler</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep('form')} activeOpacity={0.85}>
