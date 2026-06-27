@@ -1,0 +1,80 @@
+You are a senior React Native + Expo mobile UI/UX engineer.
+
+I have a major UX issue in my DietTemple mobile app:
+
+Problem:
+On pages with inputs/search fields (example: meal verification / food search page), when the keyboard opens, it covers the input field and important UI elements.
+
+Current issue:
+- Keyboard overlays search/input field
+- User cannot clearly see what they are typing
+- Buttons and food cards become partially hidden
+- Page does not properly resize or scroll
+- UX feels broken and non-professional
+
+Goal:
+Make keyboard behavior fully production-ready across Android and iOS.
+
+Required fixes:
+
+1. GLOBAL KEYBOARD HANDLING
+- Implement proper `KeyboardAvoidingView`
+- Use platform-specific behavior:
+  - iOS: `padding`
+  - Android: `height` or optimized solution
+- Ensure content shifts correctly above keyboard
+
+2. SCROLL SUPPORT
+- Wrap content in `ScrollView` or `KeyboardAwareScrollView`
+- Auto-scroll to focused input
+- User must always see active field
+- Buttons like “Ajouter un aliment” must remain accessible
+
+3. SAFE AREA + LAYOUT
+- Respect SafeAreaInsets
+- Handle bottom tabs/navigation correctly
+- Prevent keyboard from overlapping fixed footer/navigation
+
+4. INPUT EXPERIENCE
+- Search/input bar should remain visible while typing
+- Maintain premium UI spacing
+- Prevent layout jumps
+- Ensure smooth animations
+
+5. REUSABLE ARCHITECTURE
+- Create reusable keyboard-safe screen wrapper for all app forms:
+  - food search
+  - login/register
+  - profile edit
+  - checkout
+  - workout notes
+- Avoid one-page-only patch
+
+6. ANDROID SETTINGS
+- Verify `windowSoftInputMode="adjustResize"`
+- Ensure Expo/React Navigation compatibility
+
+7. TESTING
+- Test on:
+  - Small Android devices
+  - Large Android devices
+  - iPhone
+- Portrait mode priority
+- Ensure no hidden inputs anywhere
+
+8. DESIGN
+- Preserve luxury premium DietTemple design
+- No broken spacing
+- No overlapping cards
+- Smooth, polished SaaS-quality mobile UX
+
+Deliverables:
+- Files changed
+- New reusable keyboard wrapper component
+- Explanation of architecture
+- Testing steps
+- Any Android manifest / Expo config changes needed
+
+Important:
+Do NOT do a temporary fix.
+Make this a professional app-wide keyboard/input handling system.

@@ -1,0 +1,46 @@
+# Reduce EAS upload size (avoids ECONNRESET on slow/unstable networks)
+
+# Dependencies & build artifacts
+node_modules/
+.expo/
+dist/
+build/
+web-build/
+coverage/
+android/build/
+android/.gradle/
+android/node_modules/
+
+# Logs & temp files
+*.log
+npm-debug.*
+yarn-error.*
+
+# Secrets & certificates
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# IDE & OS files
+.DS_Store
+.cursor/
+.vscode/
+.idea/
+.gradle/
+.metro-health-check*
+
+# Env files
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Git history (not needed for build)
+.git/
+
+# Docs
+*.md
+!README.md

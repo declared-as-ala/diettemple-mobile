@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "DietTemple",
+    "slug": "diettemple",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "backgroundColor": "#000000",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.diettemple.app",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.diettemple.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "usesCleartextTraffic": false,
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-video",
+        {
+          "supportsPictureInPicture": true,
+          "supportsBackgroundPlayback": true
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DietTemple a besoin de votre caméra pour scanner vos repas et vérifier votre présence en salle.",
+          "microphonePermission": "DietTemple a besoin du microphone pour les vidéos d'entraînement."
+        }
+      ]
+    ],
+    "scheme": "diettemple",
+    "extra": {
+      "eas": {
+        "projectId": "6aa5dbbd-f221-4856-b8d7-1fad8d780a8f"
+      }
+    }
+  }
+}

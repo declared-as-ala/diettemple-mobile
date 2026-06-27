@@ -1,0 +1,25 @@
+node_modules/
+.expo/
+dist/
+build/
+web-build/
+coverage/
+*.log
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Metro
+.metro-health-check*
+
+
+
