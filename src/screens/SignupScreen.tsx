@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,12 @@ import {
   ImageBackground,
   Image,
   Dimensions,
-  Animated,
-  Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Signup'>;
@@ -30,86 +27,6 @@ const CARD_H = SH * 0.52;
 export default function SignupScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-
-  const titleAnim = useRef(new Animated.Value(0)).current;
-  const cardsAnim = useRef(new Animated.Value(0)).current;
-  const hommeGlowAnim = useRef(new Animated.Value(0)).current;
-  const femmeGlowAnim = useRef(new Animated.Value(0)).current;
-  const hommeScale = useRef(new Animated.Value(1)).current;
-  const femmeScale = useRef(new Animated.Value(1)).current;
-
-  useFocusEffect(
-    React.useCallback(() => {
-      Animated.timing(titleAnim, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-
-      Animated.timing(cardsAnim, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-
-      const createGlowLoop = (anim: Animated.Value) => {
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(anim, {
-              toValue: 1,
-              duration: 2000,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-            Animated.timing(anim, {
-              toValue: 0,
-              duration: 2000,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-          ])
-        ).start();
-      };
-      createGlowLoop(hommeGlowAnim);
-      createGlowLoop(femmeGlowAnim);
-    }, [titleAnim, cardsAnim, hommeGlowAnim, femmeGlowAnim])
-  );
-
-  const handlePressHomme = () => {
-    Animated.sequence([
-      Animated.timing(hommeScale, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(hommeScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      navigation.navigate('GenderVideo', { gender: 'homme' });
-    });
-  };
-
-  const handlePressFemme = () => {
-    Animated.sequence([
-      Animated.timing(femmeScale, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(femmeScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      navigation.navigate('GenderVideo', { gender: 'femme' });
-    });
-  };
 
   return (
     <View style={styles.root}>
@@ -132,191 +49,74 @@ export default function SignupScreen() {
         <View style={{ width: 38 }} />
       </View>
 
-      <Animated.View
-        style={[
-          styles.heroText,
-          {
-            opacity: titleAnim,
-            transform: [
-              {
-                translateY: titleAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [30, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.heroText}>
         <Text style={styles.eyebrow}>— Choisissez votre parcours</Text>
         <Text style={styles.title}>Bienvenue{'\n'}dans le Temple.</Text>
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        style={[
-          styles.cardsRow,
-          { marginBottom: insets.bottom + 20 },
-          {
-            opacity: cardsAnim,
-            transform: [
-              {
-                translateY: cardsAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [40, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={[styles.cardsRow, { marginBottom: insets.bottom + 20 }]}>
         {/* HOMME */}
-        <Animated.View style={[styles.card, { transform: [{ scale: hommeScale }] }]}>
-          <TouchableOpacity
-            activeOpacity={0.88}
-            style={styles.cardTouchable}
-            onPress={handlePressHomme}
-          >
-            <ImageBackground
-              source={require('../../assets/photo-1605490855119-94921710a47f.avif')}
-              style={styles.cardBg}
-              resizeMode="cover"
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[styles.card, styles.cardHomme]}
+          onPress={() => navigation.navigate('GenderVideo', { gender: 'homme' })}
+        >
+          <LinearGradient
+            colors={['rgba(70,130,180,0.2)', 'rgba(70,130,180,0.05)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+
+          <View style={styles.cardBorder} pointerEvents="none" />
+
+          <View style={styles.cardContent}>
+            <MaterialCommunityIcons name="human-male" size={52} color={GOLD} />
+
+            <Text style={styles.cardLabel}>HOMME</Text>
+            <Text style={styles.cardSub}>Force · Muscle</Text>
+
+            <LinearGradient
+              colors={[GOLD, '#b8922a']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.cardCta}
             >
-              <LinearGradient
-                colors={['rgba(0,0,0,0.30)', 'transparent', 'rgba(0,0,0,0.88)']}
-                locations={[0, 0.4, 1]}
-                style={StyleSheet.absoluteFillObject}
-              />
-
-              {/* Glow effect */}
-              <Animated.View
-                style={[
-                  styles.cardGlow,
-                  {
-                    opacity: hommeGlowAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.3, 0.6],
-                    }),
-                  },
-                ]}
-              />
-
-              <View style={styles.cardBorder} pointerEvents="none" />
-
-              <View style={styles.cardSymbolWrap}>
-                <Text style={styles.cardSymbol}>♂</Text>
-              </View>
-
-              <View style={styles.cardPlayWrap}>
-                <Animated.View
-                  style={[
-                    styles.cardPlay,
-                    {
-                      transform: [
-                        {
-                          scale: hommeGlowAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [1, 1.1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <Ionicons name="play" size={16} color="#fff" />
-                </Animated.View>
-              </View>
-
-              <View style={styles.cardBottom}>
-                <Text style={styles.cardLabel}>HOMME</Text>
-                <Text style={styles.cardSub}>Force · Muscle</Text>
-                <LinearGradient
-                  colors={[GOLD, '#b8922a']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.cardCta}
-                >
-                  <Text style={styles.cardCtaText}>Commencer</Text>
-                  <Ionicons name="arrow-forward" size={10} color="#000" />
-                </LinearGradient>
-              </View>
-            </ImageBackground>
-          </TouchableOpacity>
-        </Animated.View>
+              <Text style={styles.cardCtaText}>Commencer</Text>
+              <Ionicons name="arrow-forward" size={12} color="#000" />
+            </LinearGradient>
+          </View>
+        </TouchableOpacity>
 
         {/* FEMME */}
-        <Animated.View style={[styles.card, { transform: [{ scale: femmeScale }] }]}>
-          <TouchableOpacity
-            activeOpacity={0.88}
-            style={styles.cardTouchable}
-            onPress={handlePressFemme}
-          >
-            <ImageBackground
-              source={require('../../assets/photo-1734630341082-0fec0e10126c.avif')}
-              style={styles.cardBg}
-              resizeMode="cover"
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[styles.card, styles.cardFemme]}
+          onPress={() => navigation.navigate('GenderVideo', { gender: 'femme' })}
+        >
+          <LinearGradient
+            colors={['rgba(219,112,147,0.2)', 'rgba(219,112,147,0.05)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+
+          <View style={styles.cardBorder} pointerEvents="none" />
+
+          <View style={styles.cardContent}>
+            <MaterialCommunityIcons name="human-female" size={52} color={GOLD} />
+
+            <Text style={styles.cardLabel}>FEMME</Text>
+            <Text style={styles.cardSub}>Galbe · Vitalité</Text>
+
+            <LinearGradient
+              colors={[GOLD, '#b8922a']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.cardCta}
             >
-              <LinearGradient
-                colors={['rgba(0,0,0,0.30)', 'transparent', 'rgba(0,0,0,0.88)']}
-                locations={[0, 0.4, 1]}
-                style={StyleSheet.absoluteFillObject}
-              />
-
-              {/* Glow effect */}
-              <Animated.View
-                style={[
-                  styles.cardGlow,
-                  {
-                    opacity: femmeGlowAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.3, 0.6],
-                    }),
-                  },
-                ]}
-              />
-
-              <View style={styles.cardBorder} pointerEvents="none" />
-
-              <View style={styles.cardSymbolWrap}>
-                <Text style={styles.cardSymbol}>♀</Text>
-              </View>
-
-              <View style={styles.cardPlayWrap}>
-                <Animated.View
-                  style={[
-                    styles.cardPlay,
-                    {
-                      transform: [
-                        {
-                          scale: femmeGlowAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [1, 1.1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <Ionicons name="play" size={16} color="#fff" />
-                </Animated.View>
-              </View>
-
-              <View style={styles.cardBottom}>
-                <Text style={styles.cardLabel}>FEMME</Text>
-                <Text style={styles.cardSub}>Galbe · Vitalité</Text>
-                <LinearGradient
-                  colors={[GOLD, '#b8922a']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.cardCta}
-                >
-                  <Text style={styles.cardCtaText}>Commencer</Text>
-                  <Ionicons name="arrow-forward" size={10} color="#000" />
-                </LinearGradient>
-              </View>
-            </ImageBackground>
-          </TouchableOpacity>
-        </Animated.View>
-      </Animated.View>
+              <Text style={styles.cardCtaText}>Commencer</Text>
+              <Ionicons name="arrow-forward" size={12} color="#000" />
+            </LinearGradient>
+          </View>
+        </TouchableOpacity>
+      </View>
 
       <View style={[styles.hint, { paddingBottom: insets.bottom + 12 }]}>
         <Text style={styles.hintText}>Protocole scientifique · Dr en pharmacie · 10 ans d'expérience</Text>
@@ -369,19 +169,19 @@ const styles = StyleSheet.create({
     height: CARD_H,
     borderRadius: 20,
     overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
   },
-  cardTouchable: {
-    flex: 1,
+
+  cardHomme: {
+    borderColor: 'rgba(70,130,180,0.4)',
   },
-  cardBg: {
-    flex: 1,
-    justifyContent: 'space-between',
+
+  cardFemme: {
+    borderColor: 'rgba(219,112,147,0.4)',
   },
-  cardGlow: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
-    backgroundColor: GOLD,
-  },
+
   cardBorder: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 20,
@@ -389,60 +189,37 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(212,175,55,0.35)',
   },
 
-  cardSymbolWrap: {
-    paddingTop: 14,
-    paddingHorizontal: 14,
-  },
-  cardSymbol: {
-    fontSize: 28,
-    color: GOLD,
-    fontWeight: '700',
+  cardContent: {
+    alignItems: 'center',
+    gap: 8,
   },
 
-  cardPlayWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  cardPlay: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.30)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  cardBottom: {
-    paddingHorizontal: 12,
-    paddingBottom: 14,
-    gap: 2,
-  },
   cardLabel: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1.8,
   },
+
   cardSub: {
     color: 'rgba(255,221,127,0.80)',
     fontSize: 9.5,
-    marginBottom: 8,
+    marginBottom: 4,
   },
+
   cardCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 5,
+    gap: 6,
     borderRadius: 999,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginTop: 8,
   },
+
   cardCtaText: {
     color: '#000',
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.2,
   },
@@ -452,6 +229,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingHorizontal: PAD,
   },
+
   hintText: {
     color: 'rgba(255,255,255,0.30)',
     fontSize: 10,
