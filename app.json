@@ -6,7 +6,7 @@
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/logo.png",
       "backgroundColor": "#000000",
@@ -16,13 +16,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.diettemple.app",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#000000"
-      },
       "package": "com.diettemple.app",
       "versionCode": 1,
       "permissions": [
