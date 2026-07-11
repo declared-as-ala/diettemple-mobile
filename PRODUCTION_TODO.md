@@ -1,5 +1,17 @@
 # Mobile Production To-Do
 
+## Apple review fixes — 2026-07-11 (see docs/apple-review-fixes.md)
+
+- [x] Remove `UIBackgroundModes: audio` (Guideline 2.5.4) — expo-video plugin config + `plugins/withRemoveBackgroundAudio.js` guard.
+- [x] Lock iPad to portrait + `requireFullScreen` (module-scope Dimensions unsafe under rotation/Split View).
+- [x] In-app account deletion (Profil → Compte → Supprimer le compte) + backend `DELETE /api/me/account`.
+- [x] Link https://diettemple.tn/support and support@diettemple.tn in Aide & Contact and Mentions légales.
+- [x] Stop returning `passwordHash`/`otp` from login endpoints (backend).
+- [x] Idempotent Apple-review seed (`npm run seed:apple-review`, backend) — creates `user1@diettemple.tn` with 90-day subscription and full demo data.
+- [ ] Deploy backend to production (deletion endpoint + sanitized login + seed script).
+- [ ] Run `npm run seed:apple-review` on the server; verify `user1@diettemple.tn` login.
+- [ ] New EAS iOS build (bump `ios.buildNumber`) and resubmit.
+
 ## Completed
 
 - [x] Replace payment-method selection with direct standard order confirmation.

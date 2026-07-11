@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -46,9 +46,12 @@ const faqs: FAQItem[] = [
   {
     id: '5',
     question: 'Comment contacter le support ?',
-    answer: "Vous pouvez contacter notre équipe support via l'email support@diettemple.com ou directement depuis l'application en utilisant la fonctionnalité de contact. Nous répondons généralement dans les 24 heures.",
+    answer: "Vous pouvez contacter notre équipe support via notre page de support https://diettemple.tn/support ou par email à support@diettemple.tn. Nous répondons généralement dans les 24 heures.",
   },
 ];
+
+const SUPPORT_URL = 'https://diettemple.tn/support';
+const SUPPORT_EMAIL = 'support@diettemple.tn';
 
 export default function HelpSupportScreen() {
   const navigation = useNavigation<HelpSupportScreenNavigationProp>();
@@ -86,6 +89,39 @@ export default function HelpSupportScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Contact support */}
+        <View style={[styles.contactCard, { backgroundColor: colors.cardBackground }]}>
+          <Text style={[styles.contactTitle, { color: colors.text }]}>Contacter le support</Text>
+          <TouchableOpacity
+            style={styles.contactRow}
+            onPress={() => Linking.openURL(SUPPORT_URL).catch(() => {})}
+            activeOpacity={0.7}
+          >
+            <View style={styles.contactIconWrap}>
+              <Ionicons name="globe-outline" size={18} color="#000000" />
+            </View>
+            <View style={styles.contactTextWrap}>
+              <Text style={[styles.contactLabel, { color: colors.text }]}>Page de support</Text>
+              <Text style={[styles.contactValue, { color: colors.textSecondary }]}>diettemple.tn/support</Text>
+            </View>
+            <Ionicons name="open-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.contactRow}
+            onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {})}
+            activeOpacity={0.7}
+          >
+            <View style={styles.contactIconWrap}>
+              <Ionicons name="mail-outline" size={18} color="#000000" />
+            </View>
+            <View style={styles.contactTextWrap}>
+              <Text style={[styles.contactLabel, { color: colors.text }]}>Email</Text>
+              <Text style={[styles.contactValue, { color: colors.textSecondary }]}>{SUPPORT_EMAIL}</Text>
+            </View>
+            <Ionicons name="open-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
         {faqs.map((faq) => {
           const isExpanded = expandedItems.has(faq.id);
           return (
@@ -148,6 +184,41 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
+  },
+  contactCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  contactTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  contactIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#D4AF37',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  contactTextWrap: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  contactValue: {
+    fontSize: 13,
+    marginTop: 1,
   },
   faqContainer: {
     marginBottom: 16,

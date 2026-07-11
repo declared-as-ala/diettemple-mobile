@@ -62,6 +62,7 @@ export type RootStackParamList = {
   Favorites: undefined;
   Notifications: undefined;
   ChangePassword: undefined;
+  DeleteAccount: undefined;
   LegalNotices: undefined;
   HelpSupport: undefined;
   EditProfile: { field: 'name' | 'age' | 'sexe' | 'poids' | 'taille' | 'objectif'; currentValue: string };

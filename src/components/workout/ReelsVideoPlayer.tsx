@@ -69,8 +69,10 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
     if (!p) return;
     p.loop = true;
     p.timeUpdateEventInterval = 0.45;
-    p.staysActiveInBackground = true;
-    p.showNowPlayingNotification = true;
+    // No background audio (Apple Guideline 2.5.4): playback pauses when the
+    // app leaves the foreground and no lock-screen media controls are shown.
+    p.staysActiveInBackground = false;
+    p.showNowPlayingNotification = false;
     p.muted = isMuted;
   });
 

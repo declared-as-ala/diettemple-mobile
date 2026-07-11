@@ -42,6 +42,7 @@ import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import TabNavigator from './src/navigation/TabNavigatorWrapper';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
+import DeleteAccountScreen from './src/screens/DeleteAccountScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import LegalNoticesScreen from './src/screens/LegalNoticesScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
@@ -116,6 +117,7 @@ function AppContent() {
           <Stack.Screen name="Home" component={TabNavigator} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+          <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
           <Stack.Screen name="LegalNotices" component={LegalNoticesScreen} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />

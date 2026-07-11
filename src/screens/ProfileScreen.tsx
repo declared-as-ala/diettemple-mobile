@@ -386,6 +386,18 @@ export default function ProfileScreen() {
             <MenuRow icon="trash-outline" label="Effacer les données locales" onPress={handleClearStorage} danger last />
           </View>
 
+          {/* ── Compte ───────────────────────────────────────────────── */}
+          <Text style={styles.sectionLabel}>COMPTE</Text>
+          <View style={styles.menuCard}>
+            <MenuRow
+              icon="person-remove-outline"
+              label="Supprimer le compte"
+              onPress={() => navigation.navigate('DeleteAccount')}
+              danger
+              last
+            />
+          </View>
+
           {/* ── Logout ───────────────────────────────────────────────── */}
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
             <Ionicons name="log-out-outline" size={20} color="#EF5350" />

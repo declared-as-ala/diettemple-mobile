@@ -64,7 +64,7 @@ export default function LegalNoticesScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>4. Protection des données personnelles</Text>
           <Text style={[styles.sectionText, { color: colors.textSecondary }]}>
-            Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition aux données personnelles vous concernant. Pour exercer ces droits, contactez-nous à l'adresse : privacy@diettemple.com
+            Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition aux données personnelles vous concernant. Vous pouvez supprimer votre compte et toutes vos données directement depuis l'application : Profil → Compte → Supprimer le compte. Pour toute autre demande, contactez-nous à l'adresse : support@diettemple.tn
           </Text>
         </View>
 
@@ -99,7 +99,7 @@ export default function LegalNoticesScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>9. Contact</Text>
           <Text style={[styles.sectionText, { color: colors.textSecondary }]}>
-            Pour toute question concernant les présentes mentions légales, vous pouvez nous contacter à l'adresse : legal@diettemple.com
+            Pour toute question concernant les présentes mentions légales, vous pouvez nous contacter via notre page de support https://diettemple.tn/support ou à l'adresse : support@diettemple.tn
           </Text>
         </View>
 

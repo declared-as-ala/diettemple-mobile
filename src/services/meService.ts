@@ -327,6 +327,12 @@ export const meService = {
     return res.data;
   },
 
+  /** Permanently delete the account (password confirmation required). */
+  deleteAccount: async (password: string): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>('/me/account', { data: { password } });
+    return res.data;
+  },
+
   getToday: async (date?: string): Promise<TodayResponse> => {
     const params = date ? { date } : {};
     const res = await api.get<TodayResponse>('/me/today', { params });

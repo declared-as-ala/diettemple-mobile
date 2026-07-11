@@ -17,8 +17,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.diettemple.app",
       "buildNumber": "1",
+      "requireFullScreen": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown"
+        ]
       }
     },
     "android": {
@@ -33,11 +38,12 @@
     },
     "plugins": [
       "expo-secure-store",
+      "./plugins/withRemoveBackgroundAudio",
       [
         "expo-video",
         {
           "supportsPictureInPicture": true,
-          "supportsBackgroundPlayback": true
+          "supportsBackgroundPlayback": false
         }
       ],
       [
