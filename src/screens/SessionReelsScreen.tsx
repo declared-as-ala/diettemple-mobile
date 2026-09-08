@@ -797,35 +797,28 @@ export default function SessionReelsScreen() {
     });
   }, [currentIndex, maxUnlockedIndex]);
 
-  // Pre-fetch history for active exercise
+  // Pre-fetch history for active and next exercise
   useEffect(() => {
-    const exId = resolveExerciseId(items[currentIndex]?.exerciseId);
-    if (exId) void fetchHistoryForExercise(exId);
+    const curId = resolveExerciseId(items[currentIndex]?.exerciseId);
+    if (curId) void fetchHistoryForExercise(curId);
+    if (currentIndex + 1 < items.length) {
+      const nextId = resolveExerciseId(items[currentIndex + 1]?.exerciseId);
+      if (nextId) void fetchHistoryForExercise(nextId);
+    }
   }, [currentIndex, items, fetchHistoryForExercise]);
 
-  // Comprehensive pre-fetch: pre-fetch history for ALL primary and alternative exercises in the session
+  // Pre-fetch alternative histories only when alternative bottom sheet is opened
   useEffect(() => {
-    const ids = new Set<string>();
-    items.forEach((it) => {
-      const primId = resolveExerciseId(it.exerciseId);
-      if (primId) ids.add(primId);
-      (it.alternatives || []).forEach((alt: any) => {
+    if (showAlternatives) {
+      const slot = originalSlots.current[currentIndex];
+      const primId = resolveExerciseId(slot?.primary);
+      if (primId) void fetchHistoryForExercise(primId);
+      (slot?.alternatives || items[currentIndex]?.alternatives || []).forEach((alt: any) => {
         const altId = resolveExerciseId(alt);
-        if (altId) ids.add(altId);
+        if (altId) void fetchHistoryForExercise(altId);
       });
-    });
-    Object.values(originalSlots.current).forEach((slot) => {
-      const primId = resolveExerciseId(slot.primary);
-      if (primId) ids.add(primId);
-      (slot.alternatives || []).forEach((alt: any) => {
-        const altId = resolveExerciseId(alt);
-        if (altId) ids.add(altId);
-      });
-    });
-    ids.forEach((id) => {
-      void fetchHistoryForExercise(id);
-    });
-  }, [items, fetchHistoryForExercise]);
+    }
+  }, [showAlternatives, currentIndex, items, fetchHistoryForExercise]);
 
   const currentItem = items[currentIndex];
   const exercise = currentItem?.exerciseId;
