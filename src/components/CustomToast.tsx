@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 
@@ -66,7 +67,7 @@ export const CustomToast: React.FC<CustomToastProps> = ({
 
   if (!visible) return null;
 
-  const backgroundColor = type === 'success' ? '#D4AF37' : '#FF0000';
+  const backgroundColor = type === 'success' ? BRAND_YELLOW : '#FF0000';
   const textColor = type === 'success' ? '#000000' : '#FFFFFF';
 
   return (

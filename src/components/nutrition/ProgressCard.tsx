@@ -1,216 +1,24 @@
-import React, { memo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
-import { nutritionColors } from '../../constants/nutritionColors';
-import { MacroBars } from './MacroBars';
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const RING_SIZE = 146;
-const RING_STROKE = 12;
-const R = (RING_SIZE - RING_STROKE) / 2;
-const CIRC = 2 * Math.PI * R;
-
-interface ProgressCardProps {
-  consumedCal: number;
-  targetCal: number;
-  consumedProtein: number;
-  consumedCarbs: number;
-  consumedFat: number;
-  targetProtein: number;
-  targetCarbs: number;
-  targetFat: number;
+import { BRAND_YELLOW } from '../../constants/brand';
+import React, {memo} from 'react';
+import {View,Text,StyleSheet,useWindowDimensions} from 'react-native';
+import Svg,{Circle} from 'react-native-svg';
+import {nutritionColors as c} from '../../constants/nutritionColors';
+import {MacroBars} from './MacroBars';
+interface ProgressCardProps { consumedCal:number; targetCal:number; consumedProtein:number; consumedCarbs:number; consumedFat:number; targetProtein:number; targetCarbs:number; targetFat:number }
+function ProgressCardComponent(props:ProgressCardProps){
+ const {width,fontScale}=useWindowDimensions();const compact=width<360||fontScale>1.3;
+ const pct=props.targetCal>0?Math.min(1,Math.max(0,props.consumedCal/props.targetCal)):0;
+ const circumference=2*Math.PI*59;
+ return <View style={s.card}>
+  <View style={s.heading}><View style={s.dot}/><Text style={s.eyebrow}>VOTRE BILAN DU JOUR</Text></View>
+  <View style={[s.top,compact&&{flexDirection:'column',alignItems:'stretch'}]}>
+   <View style={{flex:1}}><Text style={s.label}>Énergie consommée</Text><Text style={s.calories}>{Math.round(props.consumedCal)}<Text style={s.unit}> kcal</Text></Text><Text style={s.target}>{props.targetCal>0?`Objectif : ${Math.round(props.targetCal)} kcal`:'Objectif non renseigné'}</Text><View style={s.pill}><Text style={s.pillText}>{props.targetCal>0?`${Math.round(Math.max(0,props.targetCal-props.consumedCal))} kcal restantes`:'Suivez vos apports du jour'}</Text></View></View>
+   <View style={{width:136,height:136,alignSelf:'center'}} accessible accessibilityLabel={props.targetCal>0?`${Math.round(pct*100)} pour cent de votre objectif calorique`:'Objectif non renseigné'}>
+    <Svg width={136} height={136}><Circle cx={68} cy={68} r={59} stroke="#3A452C" strokeWidth={10} fill="none"/><Circle cx={68} cy={68} r={59} stroke={c.gold} strokeWidth={10} fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference*(1-pct)} transform="rotate(-90 68 68)"/></Svg>
+    <View style={s.ringText}><Text style={s.percent}>{props.targetCal>0?`${Math.round(pct*100)}%`:'—'}</Text><Text style={s.label}>de l’objectif</Text></View>
+   </View>
+  </View><View style={s.divider}/><MacroBars {...props}/>
+ </View>;
 }
-
-function ProgressCardComponent({
-  consumedCal,
-  targetCal,
-  consumedProtein,
-  consumedCarbs,
-  consumedFat,
-  targetProtein,
-  targetCarbs,
-  targetFat,
-}: ProgressCardProps) {
-  const pct = targetCal > 0 ? Math.min(1, consumedCal / targetCal) : 0;
-  const ringAnim = useRef(new Animated.Value(0)).current;
-  const fadeIn = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeIn, {
-        toValue: 1,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-      Animated.timing(ringAnim, {
-        toValue: pct,
-        duration: 850,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, [pct, ringAnim, fadeIn]);
-
-  const strokeDashoffset = ringAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [CIRC, 0],
-  });
-  const remaining = Math.max(targetCal - consumedCal, 0);
-
-  return (
-    <Animated.View style={[styles.card, { opacity: fadeIn }]}>
-      <LinearGradient
-        colors={['rgba(212,175,55,0.11)', 'rgba(212,175,55,0.04)', 'rgba(255,255,255,0.01)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View style={styles.top}>
-        <View style={styles.ringWrap}>
-          <Svg width={RING_SIZE} height={RING_SIZE}>
-            <Circle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={R}
-              stroke="rgba(255,255,255,0.1)"
-              strokeWidth={RING_STROKE}
-              fill="none"
-            />
-            <AnimatedCircle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={R}
-              stroke={nutritionColors.gold}
-              strokeWidth={RING_STROKE}
-              strokeLinecap="round"
-              fill="none"
-              strokeDasharray={CIRC}
-              strokeDashoffset={strokeDashoffset as any}
-              transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-            />
-          </Svg>
-          <View style={styles.ringCenter}>
-            <Text style={styles.kcalMain}>{Math.round(consumedCal)}</Text>
-            <Text style={styles.kcalUnit}>kcal</Text>
-          </View>
-        </View>
-
-        <View style={styles.summary}>
-          <Text style={styles.summaryLabel}>Objectif journalier</Text>
-          <Text style={styles.summaryTarget}>{Math.round(targetCal)} kcal</Text>
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>{Math.round(pct * 100)}%</Text>
-          </View>
-          <Text style={styles.remaining}>
-            Restantes: <Text style={styles.remainingStrong}>{Math.round(remaining)} kcal</Text>
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.divider} />
-
-      <MacroBars
-        consumedProtein={consumedProtein}
-        consumedCarbs={consumedCarbs}
-        consumedFat={consumedFat}
-        targetProtein={targetProtein}
-        targetCarbs={targetCarbs}
-        targetFat={targetFat}
-      />
-    </Animated.View>
-  );
-}
-
-export const ProgressCard = memo(ProgressCardComponent);
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 20,
-    backgroundColor: '#131416',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 18,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  ringWrap: {
-    width: RING_SIZE,
-    height: RING_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringCenter: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  kcalMain: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: nutritionColors.text,
-    letterSpacing: -1,
-    lineHeight: 34,
-  },
-  kcalUnit: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  summary: {
-    flex: 1,
-    gap: 6,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: '600',
-  },
-  summaryTarget: {
-    fontSize: 20,
-    color: nutritionColors.text,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  pill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(212,175,55,0.16)',
-    borderColor: 'rgba(212,175,55,0.35)',
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  pillText: {
-    color: nutritionColors.gold,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  remaining: {
-    marginTop: 2,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
-    fontWeight: '600',
-  },
-  remainingStrong: {
-    color: nutritionColors.text,
-    fontWeight: '800',
-  },
-  divider: {
-    marginVertical: 16,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-});
-
+export const ProgressCard=memo(ProgressCardComponent);
+const s=StyleSheet.create({card:{padding:20,borderRadius:26,backgroundColor:'#202A18',borderWidth:1,borderColor:'#3E4D30'},heading:{flexDirection:'row',alignItems:'center',gap:8,marginBottom:22},dot:{width:6,height:6,borderRadius:3,backgroundColor:c.gold},eyebrow:{color:'#CBD4BB',fontSize:10,letterSpacing:1.6,fontWeight:'700'},top:{flexDirection:'row',alignItems:'center',gap:18},label:{color:'#B3C1A3',fontSize:11,lineHeight:17},calories:{color:'#F7F5E9',fontSize:32,fontWeight:'700',letterSpacing:-1,marginTop:8},unit:{fontSize:13,fontWeight:'500',letterSpacing:0,color:'#B3C1A3'},target:{color:'#B3C1A3',fontSize:11,lineHeight:18,marginTop:6},pill:{alignSelf:'flex-start',backgroundColor:'#354126',borderRadius:10,paddingHorizontal:10,paddingVertical:8,marginTop:14},pillText:{color:BRAND_YELLOW,fontSize:11,lineHeight:16,fontWeight:'600'},ringText:{position:'absolute',top:0,bottom:0,left:0,right:0,alignItems:'center',justifyContent:'center'},percent:{fontSize:28,color:c.gold,fontWeight:'700',marginBottom:4},divider:{height:1,backgroundColor:'#3B482D',marginVertical:22}});

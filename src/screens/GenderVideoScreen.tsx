@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -26,7 +27,7 @@ type Nav   = StackNavigationProp<RootStackParamList, 'GenderVideo'>;
 type Route = RouteProp<RootStackParamList, 'GenderVideo'>;
 
 const { width: SW, height: SH } = Dimensions.get('window');
-const GOLD     = '#D4AF37';
+const GOLD     = BRAND_YELLOW;
 const GOLD_DIM = 'rgba(212,175,55,0.15)';
 
 const GOAL_OPTIONS = [
@@ -386,7 +387,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(212,175,55,0.35)',
     overflow: 'hidden',
     marginBottom: 24,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -482,7 +483,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 24,
     gap: 18,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     flex: 1,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 10,

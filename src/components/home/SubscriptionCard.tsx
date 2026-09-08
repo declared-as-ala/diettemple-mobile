@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,7 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import type { MeSubscription } from '../../services/meService';
 import { getSubscriptionState, type SubscriptionStateResult } from '../../utils/subscriptionState';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 interface SubscriptionCardProps {
   subscription: MeSubscription | null;
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   },
   renewButton: {
     marginTop: 12,
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

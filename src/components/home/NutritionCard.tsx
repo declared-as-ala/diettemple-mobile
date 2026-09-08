@@ -1,10 +1,11 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import type { NutritionTargets, MealTemplate } from '../../services/meService';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 interface NutritionCardProps {
   targets: NutritionTargets | null;

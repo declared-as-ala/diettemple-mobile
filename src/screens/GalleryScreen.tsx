@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Progress Gallery: month calendar + filter + timeline of photo days.
  * Tap a date WITH a photo to select it for comparison (up to 2).
@@ -29,7 +30,7 @@ import { TAB_BAR_OVERLAY_PADDING } from '../navigation/tabBarMetrics';
 
 type NavProp = StackNavigationProp<HomeDrawerParamList, 'Gallery'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const { width } = Dimensions.get('window');
 const CELL_SIZE = (width - 32) / 7;
 const MONTH_NAMES_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];

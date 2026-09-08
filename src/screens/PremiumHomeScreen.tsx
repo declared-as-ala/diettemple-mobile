@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import {
   View,
@@ -17,7 +18,7 @@ import { getLevelImageSource, getLevelDisplayName, type LevelKey } from '../util
 
 type NavProp = StackNavigationProp<RootStackParamList, 'PremiumHome'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const CARD_BG = '#0f1410';
 
 const QUICK_ACTIONS = [

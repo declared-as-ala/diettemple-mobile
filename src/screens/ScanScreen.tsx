@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 
@@ -20,8 +21,8 @@ export default function ScanScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#D4AF37"
-          colors={['#D4AF37']}
+          tintColor={BRAND_YELLOW}
+          colors={[BRAND_YELLOW]}
         />
       }
     >

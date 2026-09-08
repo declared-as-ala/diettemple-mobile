@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -165,7 +166,7 @@ export default function WorkoutSessionScreen() {
             {loadError || 'Session introuvable'}
           </Text>
           <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: '#D4AF37' }]}
+            style={[styles.retryButton, { backgroundColor: BRAND_YELLOW }]}
             onPress={() => loadSession()}
             activeOpacity={0.8}
           >
@@ -441,13 +442,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
     gap: 16,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

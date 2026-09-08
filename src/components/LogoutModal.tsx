@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import {
   View,
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     width: '100%',
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   logoutButtonText: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 16,
     fontWeight: '600',
   },

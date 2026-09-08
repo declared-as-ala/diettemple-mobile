@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startupSteps } from '../utils/startupLogger';
@@ -26,7 +27,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const ACCENT_GOLD = '#D4AF37';
+const ACCENT_GOLD = BRAND_YELLOW;
 
 const darkColors: ThemeColors = {
   background: '#000000',

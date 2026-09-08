@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +11,7 @@ import { RootStackParamList } from '../types';
 type Route = RouteProp<RootStackParamList, 'SessionSummary'>;
 type Nav = StackNavigationProp<RootStackParamList, 'SessionSummary'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 export default function SessionSummaryScreen() {
   const { colors } = useTheme();

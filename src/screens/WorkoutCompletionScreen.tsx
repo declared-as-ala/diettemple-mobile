@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -119,7 +120,7 @@ export default function WorkoutCompletionScreen() {
           
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
-              <Ionicons name="checkmark-circle" size={32} color="#D4AF37" />
+              <Ionicons name="checkmark-circle" size={32} color={BRAND_YELLOW} />
               <Text style={[styles.statValue, { color: colors.text }]}>
                 {completedExercises}/{totalExercises}
               </Text>
@@ -149,7 +150,7 @@ export default function WorkoutCompletionScreen() {
             </View>
 
             <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
-              <Ionicons name="trophy" size={32} color="#FFD700" />
+              <Ionicons name="trophy" size={32} color={BRAND_YELLOW} />
               <Text style={[styles.statValue, { color: colors.text }]}>
                 {Math.round(completionPercentage)}%
               </Text>
@@ -174,7 +175,7 @@ export default function WorkoutCompletionScreen() {
               <View style={styles.completedExerciseContent}>
                 <View style={styles.completedExerciseInfo}>
                   <View style={styles.completedBadge}>
-                    <Ionicons name="checkmark" size={16} color="#D4AF37" />
+                    <Ionicons name="checkmark" size={16} color={BRAND_YELLOW} />
                   </View>
                   <Text style={[styles.completedExerciseName, { color: colors.text }]}>
                     {exercise.name}
@@ -190,7 +191,7 @@ export default function WorkoutCompletionScreen() {
 
         {/* Finish Button */}
         <TouchableOpacity
-          style={[styles.finishButton, { backgroundColor: '#D4AF37' }]}
+          style={[styles.finishButton, { backgroundColor: BRAND_YELLOW }]}
           onPress={handleFinish}
           activeOpacity={0.8}
         >
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -300,7 +301,7 @@ successSubtitle: {
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
   },
   completedExerciseName: {
     fontSize: 16,
@@ -316,7 +317,7 @@ successSubtitle: {
   },
   completedProgressFill: {
     height: '100%',
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
   },
   finishButton: {
     flexDirection: 'row',

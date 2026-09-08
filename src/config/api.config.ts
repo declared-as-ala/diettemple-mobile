@@ -1,18 +1,57 @@
-/**
- * API Configuration — backend base URL for all environments.
- *
- * New production backend (HTTPS): https://next.protein.tn
- * - All API calls use https://next.protein.tn/api
- * - Cleartext (HTTP) config can be removed in a future APK build.
- */
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
 declare const __DEV__: boolean;
 
-// DietTemple API — same for dev and production APK (release uses this URL)
-const API_HOST = 'https://api.diettemple.tn';
+const PROD_API_HOST = 'https://api.diettemple.tn';
+const LOCAL_BACKEND_PORT = 5000;
+
+function resolveDevApiHost(): string {
+  // 1. Explicit env var override (e.g. in mobile/.env: EXPO_PUBLIC_API_URL or EXPO_PUBLIC_API_HOST)
+  const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_HOST;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/api\/?$/, '');
+  }
+
+  // 2. Explicit opt-in for local backend during dev if needed
+  if (process.env.EXPO_PUBLIC_USE_LOCAL_BACKEND === 'true') {
+    const hostUri =
+      Constants.expoConfig?.hostUri ||
+      (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
+      (Constants as any).manifest?.debuggerHost;
+
+    if (hostUri) {
+      const hostIp = hostUri.split(':')[0];
+      if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
+        return `http://${hostIp}:${LOCAL_BACKEND_PORT}`;
+      }
+    }
+
+    if (Platform.OS === 'android') {
+      return `http://10.0.2.2:${LOCAL_BACKEND_PORT}`;
+    }
+
+    return `http://localhost:${LOCAL_BACKEND_PORT}`;
+  }
+
+  // 3. Default to api.diettemple.tn
+  return PROD_API_HOST;
+}
+
+export const getApiHost = (): string => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_HOST;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/api\/?$/, '');
+  }
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    return resolveDevApiHost();
+  }
+  return PROD_API_HOST;
+};
 
 let _loggedBaseUrl = false;
 export const getApiBaseUrl = (): string => {
-  const base = API_HOST.replace(/\/+$/, '');
+  const base = getApiHost().replace(/\/+$/, '');
   const url = `${base}/api`;
   if (typeof __DEV__ !== 'undefined' && __DEV__ && !_loggedBaseUrl) {
     _loggedBaseUrl = true;

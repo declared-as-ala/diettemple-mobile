@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   tier: {
-    backgroundColor: '#D4AF37', // Lime green
+    backgroundColor: BRAND_YELLOW, // Lime green
     marginBottom: 1,
     alignSelf: 'center',
   },
@@ -84,7 +85,7 @@ const styles = StyleSheet.create({
   },
   dietText: {
     fontWeight: '700',
-    color: '#D4AF37', // Lime green
+    color: BRAND_YELLOW, // Lime green
   },
   templeText: {
     fontWeight: '700',

@@ -1,16 +1,15 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { BRAND_YELLOW } from '../constants/brand';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Animated,
-  Dimensions,
-  Platform,
+  Keyboard,
 } from 'react-native';
 
-const ACCENT = '#D4AF37';
-const { width } = Dimensions.get('window');
+const ACCENT = BRAND_YELLOW;
 const TAB_BAR_OFFSET = 90;
 
 type SnackbarAction = {
@@ -46,102 +45,106 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
   const [action, setAction] = useState<SnackbarAction | undefined>();
-  const translateY = useRef(new Animated.Value(100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const generation = useRef(0);
+  const actionRef = useRef<SnackbarAction | undefined>(undefined);
+  useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
 
   const hide = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 100,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
+    const current = generation.current;
+    Animated.timing(opacity, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
-      }),
-    ]).start(() => {
+      }).start(({ finished }) => {
+      if (!finished || current !== generation.current) return;
       setVisible(false);
       setAction(undefined);
+      actionRef.current = undefined;
     });
-  }, [translateY, opacity]);
+  }, [opacity]);
 
   const showSnackbar = useCallback(
     (options: SnackbarOptions) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      generation.current += 1;
+      opacity.stopAnimation();
+      actionRef.current = options.action;
       setMessage(options.message);
       setAction(options.action);
       setVisible(true);
-      translateY.setValue(100);
       opacity.setValue(0);
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: 14,
-          stiffness: 120,
-        }),
-        Animated.timing(opacity, {
+      Animated.timing(opacity, {
           toValue: 1,
           duration: 200,
           useNativeDriver: true,
-        }),
-      ]).start();
-      const duration = options.duration ?? 2000;
+        }).start();
+      const duration = options.action ? Math.max(options.duration ?? 5000, 5000) : options.duration ?? 2000;
       timeoutRef.current = setTimeout(hide, duration);
     },
-    [hide, translateY, opacity]
+    [hide, opacity]
   );
 
   const handleAction = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    action?.onPress?.();
-    hide();
+    const callback = actionRef.current?.onPress;
+    if (!callback) return;
+    actionRef.current = undefined;
+    generation.current += 1;
+    opacity.stopAnimation();
+    setVisible(false);
+    setAction(undefined);
+    Keyboard.dismiss();
+    callback();
   };
 
   return (
     <SnackbarContext.Provider value={{ showSnackbar }}>
+      <View style={styles.container}>
       {children}
       {visible && (
-        <Animated.View
-          style={[
-            styles.wrapper,
-            {
-              opacity,
-              transform: [{ translateY }],
-            },
-          ]}
+        <View
+          style={styles.wrapper}
           pointerEvents="box-none"
         >
-          <View style={styles.snackbar}>
+          <Animated.View style={[styles.snackbar, { opacity }]}>
             <Text style={styles.message} numberOfLines={2}>
               {message}
             </Text>
             {action ? (
-              <TouchableOpacity
-                style={styles.actionBtn}
+              <Pressable
+                style={({ pressed }) => [styles.actionBtn, pressed && { backgroundColor: 'rgba(212,175,55,0.4)' }]}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                onPressIn={() => {
+                  if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                  opacity.stopAnimation();
+                  opacity.setValue(1);
+                }}
+                onPressOut={() => { timeoutRef.current = setTimeout(hide, 5000); }}
                 onPress={handleAction}
-                activeOpacity={0.8}
               >
                 <Text style={styles.actionLabel}>{action.label}</Text>
-              </TouchableOpacity>
+              </Pressable>
             ) : null}
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </View>
       )}
+      </View>
     </SnackbarContext.Provider>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   wrapper: {
     position: 'absolute',
     left: 16,
     right: 16,
     bottom: TAB_BAR_OFFSET,
     zIndex: 9999,
+    elevation: 9999,
   },
   snackbar: {
     flexDirection: 'row',
@@ -167,6 +170,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   actionBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -178,3 +183,4 @@ const styles = StyleSheet.create({
     color: ACCENT,
   },
 });
+

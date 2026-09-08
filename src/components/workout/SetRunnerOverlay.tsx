@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 /**
  * Set Runner overlay: chronometer, Finish Set → reps/weight input → recommendation → auto-advance.
  * Single set at a time; parent controls currentSetIndex for horizontal flow.
@@ -35,7 +36,7 @@ const vibrate = (ms: number) => {
   } catch (_) {}
 };
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const { width } = Dimensions.get('window');
 
 export type SetRunnerStep = 'timer' | 'input' | 'recommendation' | 'completed';

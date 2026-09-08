@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import {
   View,
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     color: '#CCCCCC', // colors.textSecondary
   },
   resendLink: {
-    color: '#D4AF37', // colors.primary
+    color: BRAND_YELLOW, // colors.primary
   },
 });
 

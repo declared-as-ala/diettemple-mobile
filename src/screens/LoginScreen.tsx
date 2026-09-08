@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import {
   View,
@@ -12,7 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,18 +26,15 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
-import { useSubscriptionStore } from '../store/subscriptionStore';
 import { authService } from '../services/authService';
-import { meService } from '../services/meService';
 import AppLoader from '../components/AppLoader';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const ACCENT_DIM = 'rgba(212,175,55,0.15)';
 const POST_LOGIN_MIN_MS = 500;
 const { width } = Dimensions.get('window');
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
-type LoginRouteProp = RouteProp<RootStackParamList, 'Login'>;
 
 const loginSchema = z.object({
   emailOrPhone: z.string().min(1, 'Ce champ est requis'),
@@ -47,9 +45,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const route = useRoute<LoginRouteProp>();
   const insets = useSafeAreaInsets();
-  const redirectTo = route.params?.redirectTo;
   const { setUser, setToken } = useAuthStore();
   const { syncWithBackend } = useProfileStore();
   const [error, setError] = useState<string>('');
@@ -92,18 +88,6 @@ export default function LoginScreen() {
       setPostLoginLoading(true);
 
       const start = Date.now();
-      const redirectPromise = (async (): Promise<keyof RootStackParamList> => {
-        if (redirectTo === 'PremiumHome' || redirectTo === 'UHPreview') return redirectTo;
-        if (redirectTo === 'UH') {
-          try {
-            const { subscription } = await meService.getSubscription();
-            useSubscriptionStore.getState().setSubscription(subscription ?? null);
-            return subscription?.status === 'ACTIVE' ? 'PremiumHome' : 'UHPreview';
-          } catch { return 'UHPreview'; }
-        }
-        return 'Home';
-      })();
-
       const syncPromise = syncWithBackend().catch(() => {});
       const cartFavPromise = (async () => {
         try {
@@ -114,14 +98,14 @@ export default function LoginScreen() {
         } catch {}
       })();
 
-      const [destination] = await Promise.all([redirectPromise, syncPromise, cartFavPromise]);
+      await Promise.all([syncPromise, cartFavPromise]);
       const elapsed = Date.now() - start;
       if (elapsed < POST_LOGIN_MIN_MS) {
         await new Promise((r) => setTimeout(r, POST_LOGIN_MIN_MS - elapsed));
       }
 
       setPostLoginLoading(false);
-      navigation.reset({ index: 0, routes: [{ name: destination as keyof RootStackParamList }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (err: any) {
       setLoading(false);
       setPostLoginLoading(false);

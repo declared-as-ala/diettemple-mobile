@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from './brand';
 /**
  * Premium color palette for the Home screen only.
  * Use these tokens so Home has a consistent, luxurious look without changing the rest of the app.
@@ -8,7 +9,7 @@
  * - Blue steel: optional subtle accents (borders, chip background)
  */
 export const homeColors = {
-  gold: '#D4AF37',
+  gold: BRAND_YELLOW,
   offWhite: '#F3F4F6',
   graphite: '#9CA3AF',
   blueSteel: '#1F3A5F',

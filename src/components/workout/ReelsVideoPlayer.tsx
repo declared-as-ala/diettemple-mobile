@@ -22,6 +22,7 @@ export interface ReelsVideoPlayerProps {
   isActive: boolean;
   isPaused: boolean;
   isMuted: boolean;
+  playbackRate?: number;
   onTap?: () => void;
   onMutedChange?: (muted: boolean) => void;
   /** Throttled time updates for persistence (seconds). */
@@ -50,6 +51,7 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
     isActive,
     isPaused,
     isMuted,
+    playbackRate = 1.0,
     onTap,
     onPlaybackStatusUpdate,
     onTimeUpdateSeconds,
@@ -74,6 +76,7 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
     p.staysActiveInBackground = false;
     p.showNowPlayingNotification = false;
     p.muted = isMuted;
+    p.playbackRate = playbackRate ?? 1.0;
   });
 
   useEffect(() => {
@@ -84,6 +87,11 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
     if (!player || isYoutube) return;
     player.muted = isMuted;
   }, [player, isMuted, isYoutube]);
+
+  useEffect(() => {
+    if (!player || isYoutube) return;
+    player.playbackRate = playbackRate ?? 1.0;
+  }, [player, playbackRate, isYoutube]);
 
   useEffect(() => {
     if (!player || isYoutube) return;

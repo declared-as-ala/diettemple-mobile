@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 /**
  * MacroRow — a single unified card showing all 3 macros as horizontal bars.
  * Replaces the old 3-separate-cards layout.
@@ -8,7 +9,7 @@ import { View, Text, StyleSheet } from 'react-native';
 const MACROS = [
   { key: 'protein', label: 'Protéines', color: '#FF6B9D', emoji: '🥩' },
   { key: 'carbs',   label: 'Glucides',  color: '#60A5FA', emoji: '🌾' },
-  { key: 'fat',     label: 'Lipides',   color: '#D4AF37', emoji: '🥑' },
+  { key: 'fat',     label: 'Lipides',   color: BRAND_YELLOW, emoji: '🥑' },
 ] as const;
 
 type MacroType = 'protein' | 'carbs' | 'fat';
@@ -58,7 +59,7 @@ export function MacroRowCard({
   const rows = [
     { emoji: '🥩', label: 'Prot.',  consumed: consumedProtein, target: targetProtein, color: '#FF6B9D' },
     { emoji: '🌾', label: 'Gluc.', consumed: consumedCarbs,   target: targetCarbs,   color: '#60A5FA' },
-    { emoji: '🥑', label: 'Lip.',  consumed: consumedFat,     target: targetFat,     color: '#D4AF37' },
+    { emoji: '🥑', label: 'Lip.',  consumed: consumedFat,     target: targetFat,     color: BRAND_YELLOW },
   ];
 
   return (

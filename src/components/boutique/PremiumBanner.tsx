@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import {
   View,
@@ -8,7 +9,7 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const BANNER_BG = '#0a0f0a';
 const CHIP_BG = 'rgba(0, 255, 0, 0.12)';
 

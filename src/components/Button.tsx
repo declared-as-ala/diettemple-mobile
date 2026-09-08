@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import AppLoader from './AppLoader';
@@ -45,7 +46,7 @@ export const Button: React.FC<ButtonProps> = ({
 // Use direct color values in StyleSheet.create to avoid module initialization issues
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#D4AF37', // colors.primary
+    backgroundColor: BRAND_YELLOW, // colors.primary
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12, // theme.borderRadius.md
@@ -55,12 +56,12 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   primaryButton: {
-    backgroundColor: '#D4AF37', // colors.primary
+    backgroundColor: BRAND_YELLOW, // colors.primary
   },
   outlineButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#D4AF37', // colors.primary
+    borderColor: BRAND_YELLOW, // colors.primary
   },
   loadingButton: {
     opacity: 0.7,
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   outlineButtonText: {
-    color: '#D4AF37', // colors.primary
+    color: BRAND_YELLOW, // colors.primary
   },
 });
 

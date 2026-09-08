@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -26,7 +27,7 @@ import { useGymCheckinStore } from '../store/gymCheckinStore';
 import { buildReelsSessionFromApiSession } from '../utils/buildReelsSessionFromApiSession';
 import AppBackground from '../components/AppBackground';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 type Route = RouteProp<RootStackParamList, 'GymVerification'>;
 type Nav = StackNavigationProp<RootStackParamList, 'GymVerification'>;

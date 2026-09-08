@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -15,7 +16,7 @@ import { usePreventScreenCapture } from '../hooks/usePreventScreenCapture';
 type Route = RouteProp<RootStackParamList, 'Warmup'>;
 type Nav = StackNavigationProp<RootStackParamList, 'Warmup'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 export default function WarmupScreen() {
   const navigation = useNavigation<Nav>();

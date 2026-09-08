@@ -1,427 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+﻿import React, { useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { RootStackParamList } from '../types';
-import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
 import { useCartStore } from '../store/cartStore';
 import { useOrdersStore } from '../store/ordersStore';
 import { checkoutService } from '../services/checkoutService';
-import AppLoader from '../components/AppLoader';
-
-type DeliveryAddressScreenRouteProp = RouteProp<RootStackParamList, 'DeliveryAddress'>;
-type DeliveryAddressScreenNavigationProp = StackNavigationProp<RootStackParamList, 'DeliveryAddress'>;
-
-interface FormData {
-  fullName: string;
-  street: string;
-  city: string;
-  delegation: string;
-  phone: string;
-  email: string;
-}
-
-interface FormErrors {
-  fullName?: string;
-  street?: string;
-  city?: string;
-  delegation?: string;
-  phone?: string;
-  email?: string;
-}
+import { shopStyles as s, shopColors as c, money } from '../components/boutique/shopStyles';
+import { validateCheckout, CheckoutFields } from '../utils/checkout';
 
 export default function DeliveryAddressScreen() {
-  const navigation = useNavigation<DeliveryAddressScreenNavigationProp>();
-  const route = useRoute<DeliveryAddressScreenRouteProp>();
-  const { colors } = useTheme();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList, 'DeliveryAddress'>>();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'DeliveryAddress'>>();
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { profile } = useProfileStore();
-  const { promoCode } = route.params;
   const { items, clearCart } = useCartStore();
-
-  const [formData, setFormData] = useState<FormData>({
-    fullName: profile.name || user?.name || '',
-    street: '',
-    city: '',
-    delegation: '',
-    phone: user?.phone || '',
-    email: user?.email || '',
-  });
-
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [form, setForm] = useState<CheckoutFields>({ fullName: profile.name || user?.name || '', street: '', email: user?.email || '', phone: user?.phone || '' });
+  const [errors, setErrors] = useState<Partial<CheckoutFields>>({});
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Nom et prénom requis';
-    }
-
-    if (!formData.street.trim()) {
-      newErrors.street = 'Adresse requise';
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = 'Ville requise';
-    }
-
-    if (!formData.delegation.trim()) {
-      newErrors.delegation = 'Délégation requise';
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Téléphone requis';
-    } else if (!/^(\+216|00216)?[0-9]{8}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Numéro de téléphone invalide';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email requis';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email invalide';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleContinue = async () => {
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
+  const lock = useRef(false);
+  const scroll = useRef<ScrollView>(null);
+  const fields = useRef<Partial<Record<keyof CheckoutFields, TextInput | null>>>({});
+  const submit = async () => {
+    if (lock.current) return;
+    const validation = validateCheckout(form);
+    setErrors(validation);
+    const first = Object.keys(validation)[0] as keyof CheckoutFields | undefined;
+    if (first) { fields.current[first]?.focus(); return; }
+    if (!items.length) { setError('Votre panier est vide. Ajoutez un produit avant de commander.'); return; }
+    lock.current = true; setLoading(true); setError('');
     try {
-      if (!items.length) {
-        Alert.alert('Panier vide', 'Votre panier est vide.');
-        return;
-      }
-
       const order = await checkoutService.createOrder({
-        items: items.map((item) => ({
-          productId: item.product._id,
-          quantity: item.quantity,
-        })),
-        deliveryAddress: {
-          fullName: formData.fullName.trim(),
-          street: formData.street.trim(),
-          city: formData.city.trim(),
-          delegation: formData.delegation.trim(),
-          phone: formData.phone.trim(),
-          email: formData.email.trim(),
-        },
-        promoCode,
+        items: items.map(item => ({ productId: item.product._id, quantity: item.quantity })),
+        deliveryAddress: { fullName: form.fullName.trim(), street: form.street.trim(), email: form.email.trim(), phone: form.phone.replace(/[\s().-]/g, '') },
+        promoCode: params.promoCode,
       });
-
       useOrdersStore.getState().setLastOrder(order);
-      await clearCart();
-      navigation.replace('PaymentSuccess', {
-        orderId: order._id,
-        order,
-      });
-    } catch (error: any) {
-      Alert.alert('Erreur', error.response?.data?.message || 'Impossible de créer la commande');
-    } finally {
-      setLoading(false);
-    }
+      // Once the order exists, a local storage failure must never invite a duplicate order.
+      try { await clearCart(); } catch { useCartStore.setState({ items: [] }); }
+      navigation.replace('PaymentSuccess', { orderId: order._id, order });
+    } catch (e: any) { setError(e.response?.data?.message || 'La confirmation n’a pas pu être reçue. Vérifiez votre connexion avant de réessayer.'); }
+    finally { lock.current = false; setLoading(false); }
   };
-
-  return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <StatusBar style={colors.background === '#000000' ? 'light' : 'dark'} />
-      
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Adresse de livraison</Text>
-        <View style={{ width: 24 }} />
+  const definitions: { key: keyof CheckoutFields; label: string; placeholder: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+    { key: 'fullName', label: 'Nom complet', placeholder: 'Votre nom et prénom', icon: 'person-outline' },
+    { key: 'street', label: 'Adresse complète', placeholder: 'Rue, numéro, appartement, ville et code postal', icon: 'location-outline' },
+    { key: 'email', label: 'Adresse e-mail', placeholder: 'vous@exemple.com', icon: 'mail-outline' },
+    { key: 'phone', label: 'Numéro de téléphone', placeholder: '+216 XX XXX XXX', icon: 'call-outline' },
+  ];
+  return <KeyboardAvoidingView style={[s.root, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <StatusBar style="light" />
+    <View style={s.header}><Pressable style={s.iconButton} disabled={loading} accessibilityRole="button" accessibilityLabel="Retour au panier" onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={22} color={c.text} /></Pressable><Text style={s.headerTitle}>Finaliser ma commande</Text><Ionicons name="bag-check-outline" size={24} color={c.gold} /></View>
+    <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <Text style={s.eyebrow}>LA DERNIÈRE ÉTAPE</Text><Text style={s.title}>Vos essentiels arrivent bientôt.</Text><Text style={s.caption}>Quatre informations pour préparer votre livraison et vous envoyer la confirmation.</Text>
+      <View style={[s.panel, { marginTop: 24 }]}><Text style={s.sectionTitle}>Vos coordonnées</Text>
+        {definitions.map(({ key, label, placeholder, icon }) => <View key={key} style={{ marginTop: 22 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}><Ionicons name={icon} size={17} color={c.gold} /><Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{label}</Text></View>
+          <TextInput ref={el => { fields.current[key] = el; }} style={[s.input, key === 'street' && { minHeight: 94, textAlignVertical: 'top' }, !!errors[key] && { borderColor: '#E7998D' }]} accessibilityLabel={label} placeholder={placeholder} placeholderTextColor={c.muted} value={form[key]} editable={!loading} multiline={key === 'street'} autoCorrect={false} autoCapitalize={key === 'email' ? 'none' : key === 'fullName' ? 'words' : 'sentences'} keyboardType={key === 'email' ? 'email-address' : key === 'phone' ? 'phone-pad' : 'default'} autoComplete={key === 'fullName' ? 'name' : key === 'street' ? 'street-address' : key === 'phone' ? 'tel' : 'email'} onChangeText={value => { setForm(previous => ({ ...previous, [key]: value })); setErrors(previous => ({ ...previous, [key]: undefined })); }} />
+          {!!errors[key] && <Text style={s.error} accessibilityLiveRegion="polite">{errors[key]}</Text>}
+          {key === 'street' && <Text style={[s.caption, { fontSize: 11, marginTop: 8 }]}>Précisez la ville et un repère utile pour le livreur.</Text>}
+        </View>)}
       </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Adresse de livraison</Text>
-
-        {/* Full Name */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Nom et prénom <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: errors.fullName ? '#FF0000' : colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Maher ladhari"
-            placeholderTextColor={colors.textSecondary}
-            value={formData.fullName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, fullName: text });
-              if (errors.fullName) setErrors({ ...errors, fullName: undefined });
-            }}
-          />
-          {errors.fullName && (
-            <Text style={styles.errorText}>{errors.fullName}</Text>
-          )}
-        </View>
-
-        {/* Street Address */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Adresse <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: errors.street ? '#FF0000' : colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Entrez votre adresse"
-            placeholderTextColor={colors.textSecondary}
-            value={formData.street}
-            onChangeText={(text) => {
-              setFormData({ ...formData, street: text });
-              if (errors.street) setErrors({ ...errors, street: undefined });
-            }}
-            multiline
-          />
-          {errors.street && (
-            <Text style={styles.errorText}>{errors.street}</Text>
-          )}
-        </View>
-
-        {/* City */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Ville <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: errors.city ? '#FF0000' : colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Entrez votre ville Ex: Sousse"
-            placeholderTextColor={colors.textSecondary}
-            value={formData.city}
-            onChangeText={(text) => {
-              setFormData({ ...formData, city: text });
-              if (errors.city) setErrors({ ...errors, city: undefined });
-            }}
-          />
-          {errors.city && (
-            <Text style={styles.errorText}>{errors.city}</Text>
-          )}
-        </View>
-
-        {/* Delegation */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Délégation <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: errors.delegation ? '#FF0000' : colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Entrez votre délégation Ex: Khzema"
-            placeholderTextColor={colors.textSecondary}
-            value={formData.delegation}
-            onChangeText={(text) => {
-              setFormData({ ...formData, delegation: text });
-              if (errors.delegation) setErrors({ ...errors, delegation: undefined });
-            }}
-          />
-          {errors.delegation && (
-            <Text style={styles.errorText}>{errors.delegation}</Text>
-          )}
-        </View>
-
-        {/* Phone */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Numéro de téléphone <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: errors.phone ? '#FF0000' : colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Entrez votre Numéro de téléphone"
-            placeholderTextColor={colors.textSecondary}
-            value={formData.phone}
-            onChangeText={(text) => {
-              setFormData({ ...formData, phone: text });
-              if (errors.phone) setErrors({ ...errors, phone: undefined });
-            }}
-            keyboardType="phone-pad"
-          />
-          {errors.phone && (
-            <Text style={styles.errorText}>{errors.phone}</Text>
-          )}
-        </View>
-
-        {/* Email */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Adresse e-mail <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: errors.email ? '#FF0000' : colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Entrez votre Adresse e-mail"
-            placeholderTextColor={colors.textSecondary}
-            value={formData.email}
-            onChangeText={(text) => {
-              setFormData({ ...formData, email: text });
-              if (errors.email) setErrors({ ...errors, email: undefined });
-            }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          {errors.email && (
-            <Text style={styles.errorText}>{errors.email}</Text>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Continue Button */}
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[styles.continueButton, { backgroundColor: '#D4AF37' }]}
-          onPress={handleContinue}
-          disabled={loading}
-        >
-          {loading ? (
-            <AppLoader variant="button" size="sm" />
-          ) : (
-            <>
-              <Text style={styles.continueButtonText}>Confirmer la commande</Text>
-              <Ionicons name="checkmark-circle" size={20} color="#000000" />
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
-  );
+      <View style={s.panel}><Text style={s.sectionTitle}>Votre commande</Text>{items.map(item => <View key={item.product._id} style={s.row}><Text style={[s.caption, { flex: 1 }]}>{item.product.name}</Text><Text style={s.value}>× {item.quantity}</Text></View>)}<View style={s.row}><Text style={s.caption}>Sous-total</Text><Text style={s.value}>{money(params.subtotal)} DT</Text></View><View style={s.row}><Text style={s.caption}>Livraison</Text><Text style={s.value}>{params.deliveryFee ? `${money(params.deliveryFee)} DT` : 'Offerte'}</Text></View>{params.discount > 0 && <View style={s.row}><Text style={s.caption}>Réduction</Text><Text style={s.value}>−{money(params.discount)} DT</Text></View>}</View>
+      <Text style={[s.caption, { marginTop: 18 }]}>Le montant définitif est confirmé à la validation. Vos coordonnées servent à traiter votre commande et sa livraison.</Text>
+      {!!error && <View style={[s.panel, { borderColor: '#A96658' }]}><Text style={s.error} accessibilityRole="alert">{error}</Text></View>}
+    </ScrollView>
+    <View style={[s.footer, { paddingBottom: Math.max(16, insets.bottom) }]}><View style={s.row}><Text style={s.caption}>Total estimé</Text><Text style={s.total}>{money(params.total)} DT</Text></View><Pressable style={[s.primary, (loading || !items.length) && s.disabled]} disabled={loading || !items.length} onPress={submit} accessibilityRole="button" accessibilityLabel="Confirmer ma commande" accessibilityState={{ busy: loading, disabled: loading || !items.length }}>{loading ? <ActivityIndicator color={c.ink} /> : <><Text style={s.primaryText}>Confirmer ma commande</Text><Ionicons name="checkmark" size={21} color={c.ink} /></>}</Pressable></View>
+  </KeyboardAvoidingView>;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#FF0000',
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 48,
-  },
-  errorText: {
-    color: '#FF0000',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  footer: {
-    padding: 20,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-  },
-  continueButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  continueButtonText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

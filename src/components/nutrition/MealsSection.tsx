@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { nutritionColors } from '../../constants/nutritionColors';
 import type { MealTemplate } from '../../services/meService';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 
 // Map meal title keywords to emoji
 function getMealEmoji(title: string): string {

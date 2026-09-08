@@ -29,7 +29,7 @@ function MacroBar({
         <Text style={styles.macroLabel}>{label}</Text>
         <Text style={[styles.macroValue, { color }]}>
           {Math.round(consumed)}g
-          <Text style={styles.macroTarget}> / {Math.round(target)}g</Text>
+          <Text style={styles.macroTarget}>{target > 0 ? ` / ${Math.round(target)}g` : ' / —'}</Text>
         </Text>
       </View>
       <View style={styles.track}>
@@ -46,19 +46,19 @@ function MacroBarsComponent(props: MacroBarsProps) {
         label="Protéines"
         consumed={props.consumedProtein}
         target={props.targetProtein}
-        color="#FF6B9D"
+        color="#D5BF87"
       />
       <MacroBar
         label="Glucides"
         consumed={props.consumedCarbs}
         target={props.targetCarbs}
-        color="#60A5FA"
+        color="#A9C8B0"
       />
       <MacroBar
         label="Lipides"
         consumed={props.consumedFat}
         target={props.targetFat}
-        color={nutritionColors.gold}
+        color="#D5A787"
       />
     </View>
   );
@@ -75,13 +75,15 @@ const styles = StyleSheet.create({
   },
   labelCol: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
     alignItems: 'baseline',
     justifyContent: 'space-between',
   },
   macroLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.65)',
+    color: '#D1DBC3',
     letterSpacing: 0.2,
   },
   macroValue: {
@@ -90,7 +92,7 @@ const styles = StyleSheet.create({
   },
   macroTarget: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: '#AEBF9B',
     fontWeight: '600',
   },
   track: {

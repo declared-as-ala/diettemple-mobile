@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import {
   View,
@@ -18,7 +19,7 @@ import { RootStackParamList } from '../types';
 type Nav = StackNavigationProp<RootStackParamList, 'Signup'>;
 
 const { width: SW, height: SH } = Dimensions.get('window');
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const GAP = 10;
 const PAD = 16;
 const CARD_W = (SW - PAD * 2 - GAP) / 2;

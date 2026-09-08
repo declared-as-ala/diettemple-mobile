@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Scanner mon repas (IA): capture → analyse → vérifier (grams, remplacer, ajouter) → confirmer.
  * French UI, premium UX. AI never auto-commits; user must confirm.
@@ -33,7 +34,7 @@ import FoodSearchModal from '../components/FoodSearchModal';
 
 type NavProp = StackNavigationProp<RootStackParamList, 'MealScan'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const PRESETS = [50, 100, 150, 200];
 const ANALYSIS_TIMEOUT_MS = 10000;
 
@@ -292,16 +293,18 @@ export default function MealScanScreen() {
   );
 
   const pickImage = async (useCamera: boolean) => {
-    const { status } = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission requise', "Autorisez l'accès à la caméra ou aux photos pour scanner un repas.");
-      return;
+    // Gallery selection uses the Android/iOS system Photo Picker via launchImageLibraryAsync,
+    // which needs no permission request — only the camera flow needs an explicit permission.
+    if (useCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', "Autorisez l'accès à la caméra pour scanner un repas.");
+        return;
+      }
     }
     const result = useCamera
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, base64: true, quality: 0.6 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, base64: true, quality: 0.6 });
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], base64: true, quality: 0.6 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.6, legacy: false });
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;
     const base64 = (result.assets[0] as any).base64 ?? null;
@@ -454,7 +457,7 @@ export default function MealScanScreen() {
               <Image source={{ uri: photoUri }} style={styles.preview} resizeMode="cover" />
               <TouchableOpacity style={styles.analyseCta} onPress={handleAnalyser} activeOpacity={0.85}>
                 <LinearGradient
-                  colors={['#D4AF37', '#C19B28']}
+                  colors={[BRAND_YELLOW, '#C19B28']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   style={styles.analyseCtaGradient}
                 >
@@ -478,7 +481,7 @@ export default function MealScanScreen() {
               </Text>
               <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(true)} activeOpacity={0.85}>
                 <LinearGradient
-                  colors={['#D4AF37', '#C19B28']}
+                  colors={[BRAND_YELLOW, '#C19B28']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   style={styles.pickBtnGradient}
                 >
@@ -617,7 +620,7 @@ export default function MealScanScreen() {
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={['#D4AF37', '#C19B28']}
+              colors={[BRAND_YELLOW, '#C19B28']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.addToDayGradient}
             >

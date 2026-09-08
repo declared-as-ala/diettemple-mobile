@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * AppLoader — premium gold loader.
  *
@@ -35,7 +36,7 @@ export interface AppLoaderProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const GOLD_DIM = 'rgba(212,175,55,0.15)';
 const DOT_COLOR = GOLD;
 

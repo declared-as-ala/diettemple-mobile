@@ -1,7 +1,8 @@
+import { BRAND_YELLOW } from './brand';
 // Define colors object first
 const colorsObject = {
   background: '#000000',
-  primary: '#D4AF37', // Gold accent
+  primary: BRAND_YELLOW, // Gold accent
   text: '#FFFFFF',
   textSecondary: '#CCCCCC',
   error: '#FF0000',

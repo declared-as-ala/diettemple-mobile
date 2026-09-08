@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import {
   View,
@@ -33,7 +34,7 @@ const forgotPasswordSchema = z.object({
 });
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<ForgotPasswordScreenNavigationProp>();
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#F2D37A',
+    color: BRAND_YELLOW,
     marginBottom: 6,
     textAlign: 'center',
   },

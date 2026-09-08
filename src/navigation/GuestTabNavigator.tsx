@@ -1,3 +1,5 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,21 +13,23 @@ export default function GuestTabNavigator() {
   const { colors, isDarkMode } = useTheme();
   
   const tabBarBackgroundColor = isDarkMode ? '#2A2A2A' : '#E5E5E5';
-  const tabBarActiveColor = '#D4AF37';
+  const tabBarActiveColor = BRAND_YELLOW;
   const tabBarInactiveColor = isDarkMode ? '#FFFFFF' : '#000000';
 
   return (
+    <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
     <Tab.Navigator
+      safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
           backgroundColor: tabBarBackgroundColor,
-          height: Platform.OS === 'ios' ? 75 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+          height: 70,
+          paddingBottom: 10,
           paddingTop: 10,
           borderRadius: 35,
           marginHorizontal: 16,
-          marginBottom: Platform.OS === 'ios' ? 20 : 20,
+          marginBottom: 16,
           position: 'absolute',
           elevation: 0,
           shadowOpacity: 0,
@@ -55,6 +59,7 @@ export default function GuestTabNavigator() {
         }}
       />
     </Tab.Navigator>
+    </SafeAreaView>
   );
 }
 

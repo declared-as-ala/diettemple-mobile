@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -49,7 +50,7 @@ export default function OrdersListScreen() {
     setRefreshing(false);
   }, []);
 
-  const GOLD = '#D4AF37';
+  const GOLD = BRAND_YELLOW;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -119,7 +120,7 @@ export default function OrdersListScreen() {
             Vous n'avez encore rien commandé. Une fois votre première commande passée, elle s'affichera dans cette section.
           </Text>
           <TouchableOpacity
-            style={[styles.discoverButton, { backgroundColor: '#D4AF37' }]}
+            style={[styles.discoverButton, { backgroundColor: BRAND_YELLOW }]}
             onPress={() => navigation.navigate('Boutique')}
           >
             <Text style={styles.discoverButtonText}>Découvrir la boutique</Text>
@@ -150,8 +151,8 @@ export default function OrdersListScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#D4AF37"
-            colors={['#D4AF37']}
+            tintColor={BRAND_YELLOW}
+            colors={[BRAND_YELLOW]}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
   paymentMethodText: { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
   totalRight: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   totalLabel: { fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: '500' },
-  totalValue: { fontSize: 17, fontWeight: '800', color: '#D4AF37' },
+  totalValue: { fontSize: 17, fontWeight: '800', color: BRAND_YELLOW },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

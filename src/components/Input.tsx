@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps, TouchableOpacity } from 'react-native';
 
@@ -23,7 +24,7 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const hasValue = !!props.value;
-  const showLimeBorder = hasValue && !error && (isFocused || borderColor === '#D4AF37');
+  const showLimeBorder = hasValue && !error && (isFocused || borderColor === BRAND_YELLOW);
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF0000',
   },
   inputValid: {
-    borderColor: '#D4AF37', // Lime green when valid
+    borderColor: BRAND_YELLOW, // Lime green when valid
   },
   errorText: {
     fontSize: 14,

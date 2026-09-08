@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Mon Plan: all weeks in accordion, drawer header, session + exercise names.
  * Loads all weeks (1..durationWeeks), fetches session details for exercise names.
@@ -37,7 +38,7 @@ const DAY_LABELS: Record<string, string> = {
   sun: 'Dimanche',
 };
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 const sessionOverviewBg = require('../../assets/session_overview.png');
 

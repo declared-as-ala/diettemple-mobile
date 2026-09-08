@@ -1,546 +1,182 @@
-import React, { useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  Animated,
-  Pressable,
-  Dimensions,
-} from 'react-native';
+import { BRAND_YELLOW } from '../../constants/brand';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Product } from '../../services/productsService';
+import { resolveMediaUrl } from '../../config/api.config';
 import { lightImpact, selectionAsync } from '../../utils/haptics';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_PADDING = 20;
-const CARD_GAP = 12;
-const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - CARD_GAP) / 2;
-const IMAGE_HEIGHT = Math.round(CARD_WIDTH * 1.1);
+export const GRID_PADDING = 20;
+export const CARD_GAP = 12;
+const GOLD = BRAND_YELLOW;
+const money = (value: number) => value.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 
-const GOLD = '#D4AF37';
-const GOLD_DIM = 'rgba(212,175,55,0.7)';
-const CARD_BG = '#161616';
-const CARD_BORDER = 'rgba(255,255,255,0.06)';
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-export function ProductCardSkeleton({ index = 0 }: { index?: number }) {
-  const pulse = useRef(new Animated.Value(0.3)).current;
-
-  React.useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.delay(index * 60),
-        Animated.timing(pulse, { toValue: 0.6, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.3, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [pulse, index]);
-
-  return (
-    <Animated.View style={[sk.card, { opacity: pulse }]}>
-      <View style={sk.image} />
-      <View style={sk.body}>
-        <View style={sk.categoryLine} />
-        <View style={sk.nameLine} />
-        <View style={sk.nameLine2} />
-        <View style={sk.priceLine} />
-      </View>
-    </Animated.View>
-  );
-}
-
-const sk = StyleSheet.create({
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: IMAGE_HEIGHT,
-    backgroundColor: '#1A1A1A',
-  },
-  body: {
-    padding: 14,
-  },
-  categoryLine: {
-    width: 48,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#222',
-    marginBottom: 10,
-  },
-  nameLine: {
-    width: '85%',
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#222',
-    marginBottom: 6,
-  },
-  nameLine2: {
-    width: '55%',
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#222',
-    marginBottom: 12,
-  },
-  priceLine: {
-    width: '40%',
-    height: 14,
-    borderRadius: 6,
-    backgroundColor: '#222',
-  },
-});
-
-// ─── Product Card ─────────────────────────────────────────────────────────────
-
-interface ProductCardV2Props {
+interface Props {
   product: Product;
+  width: number;
   cartQuantity: number;
   isFavorited: boolean;
   isUhSubscribed?: boolean;
   onPress: () => void;
-  onFavoritePress: (e: any) => void;
-  onAddToCart: (e: any) => void;
-  onUpdateQuantity: (delta: number) => void;
+  onFavoritePress: (e: any) => void | Promise<void>;
+  onAddToCart: (e: any) => void | Promise<void>;
+  onUpdateQuantity: (delta: number) => void | Promise<void>;
   onUhCtaPress?: () => void;
 }
 
-function ProductCardV2Base({
-  product,
-  cartQuantity,
-  isFavorited,
-  isUhSubscribed = false,
-  onPress,
-  onFavoritePress,
-  onAddToCart,
-  onUpdateQuantity,
-  onUhCtaPress,
-}: ProductCardV2Props) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const favScaleAnim = useRef(new Animated.Value(1)).current;
-  const cartBtnScale = useRef(new Animated.Value(1)).current;
-
-  const hasUhPrice = !!(product.uhPrice && product.uhPrice > 0 && product.uhPrice < product.price);
-
-  const finalPrice =
-    isUhSubscribed && hasUhPrice
-      ? product.uhPrice!
-      : product.discount && product.price
-        ? product.price * (1 - product.discount / 100)
-        : product.price ?? 0;
-
-  const hasDiscount = !isUhSubscribed && !!(product.discount && product.discount > 0 && product.price);
-  const inStock = product.stock === undefined || product.stock === null || product.stock > 0;
-
-  // ── Press animation ──
-  const onPressIn = useCallback(() => {
-    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-  }, [scaleAnim]);
-
-  const onPressOut = useCallback(() => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-  }, [scaleAnim]);
-
-  // ── Favorite ──
-  const handleFavorite = useCallback(
-    (e: any) => {
-      e?.stopPropagation?.();
-      selectionAsync();
-      Animated.sequence([
-        Animated.spring(favScaleAnim, { toValue: 1.3, useNativeDriver: true, speed: 60 }),
-        Animated.spring(favScaleAnim, { toValue: 1, useNativeDriver: true, speed: 60 }),
-      ]).start();
-      onFavoritePress(e);
-    },
-    [favScaleAnim, onFavoritePress],
-  );
-
-  // ── Add to cart / stepper ──
-  const handleAdd = useCallback(
-    (e: any) => {
-      e?.stopPropagation?.();
-      lightImpact();
-      Animated.sequence([
-        Animated.spring(cartBtnScale, { toValue: 0.85, useNativeDriver: true, speed: 60 }),
-        Animated.spring(cartBtnScale, { toValue: 1, useNativeDriver: true, speed: 60 }),
-      ]).start();
-      if (cartQuantity === 0) {
-        onAddToCart(e);
-      } else {
-        onUpdateQuantity(1);
-      }
-    },
-    [cartBtnScale, cartQuantity, onAddToCart, onUpdateQuantity],
-  );
-
-  const handleMinus = useCallback(
-    (e: any) => {
-      e?.stopPropagation?.();
-      lightImpact();
-      onUpdateQuantity(-1);
-    },
-    [onUpdateQuantity],
-  );
-
+export function ProductCardSkeleton({ width }: { width: number }) {
   return (
-    <Animated.View style={[styles.cardOuter, { transform: [{ scale: scaleAnim }] }]}>
-      <Pressable
-        style={styles.card}
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-      >
-        {/* ── Image ── */}
-        <View style={styles.imageWrap}>
-          <Image
-            source={{
-              uri: product.images?.[0] || 'https://via.placeholder.com/300x330?text=Produit',
-            }}
-            style={styles.image}
-            resizeMode="cover"
-          />
-
-          {/* Out of stock overlay */}
-          {!inStock && (
-            <View style={styles.outOfStockOverlay}>
-              <View style={styles.outOfStockBadge}>
-                <Text style={styles.outOfStockText}>Rupture</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Discount badge */}
-          {hasDiscount && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>-{product.discount}%</Text>
-            </View>
-          )}
-
-          {/* Favorite button */}
-          <Pressable
-            style={[styles.favBtn, isFavorited && styles.favBtnActive]}
-            onPress={handleFavorite}
-            hitSlop={8}
-          >
-            <Animated.View style={{ transform: [{ scale: favScaleAnim }] }}>
-              <Ionicons
-                name={isFavorited ? 'heart' : 'heart-outline'}
-                size={16}
-                color={isFavorited ? '#FF6B9D' : 'rgba(255,255,255,0.85)'}
-              />
-            </Animated.View>
-          </Pressable>
-        </View>
-
-        {/* ── Content ── */}
-        <View style={styles.content}>
-          {/* Category */}
-          {!!product.category && (
-            <Text style={styles.category} numberOfLines={1}>
-              {String(product.category).toUpperCase()}
-            </Text>
-          )}
-
-          {/* Name */}
-          <Text style={styles.name} numberOfLines={2}>
-            {product.name}
-          </Text>
-
-          {/* Price + Cart action row */}
-          <View style={styles.priceActionRow}>
-            <View style={styles.priceBlock}>
-              {isUhSubscribed && hasUhPrice ? (
-                <>
-                  <Text style={[styles.price, { color: GOLD }]}>{Math.round(product.uhPrice!)} DT</Text>
-                  <Text style={styles.strikePrice}>{Math.round(product.price)} DT</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.price}>{Math.round(finalPrice)} DT</Text>
-                  {hasDiscount && (
-                    <Text style={styles.strikePrice}>{Math.round(product.price!)} DT</Text>
-                  )}
-                </>
-              )}
-            </View>
-
-            {/* Cart button (compact, right-aligned) */}
-            {cartQuantity === 0 ? (
-              <Animated.View style={{ transform: [{ scale: cartBtnScale }] }}>
-                <Pressable
-                  style={[styles.cartBtn, !inStock && styles.cartBtnDisabled]}
-                  onPress={handleAdd}
-                  disabled={!inStock}
-                  hitSlop={4}
-                >
-                  <Ionicons name="add" size={18} color={inStock ? '#000' : '#555'} />
-                </Pressable>
-              </Animated.View>
-            ) : (
-              <View style={styles.stepper}>
-                <Pressable style={styles.stepperBtn} onPress={handleMinus} hitSlop={4}>
-                  <Ionicons
-                    name={cartQuantity === 1 ? 'trash-outline' : 'remove'}
-                    size={14}
-                    color={GOLD}
-                  />
-                </Pressable>
-                <Text style={styles.stepperQty}>{cartQuantity}</Text>
-                <Pressable
-                  style={[styles.stepperBtn, styles.stepperBtnPlus]}
-                  onPress={handleAdd}
-                  hitSlop={4}
-                >
-                  <Ionicons name="add" size={14} color="#000" />
-                </Pressable>
-              </View>
-            )}
-          </View>
-
-          {/* UH price teaser (non-subscriber only) */}
-          {!isUhSubscribed && hasUhPrice && (
-            <Pressable
-              style={styles.uhTeaser}
-              onPress={(e) => {
-                e?.stopPropagation?.();
-                onUhCtaPress?.();
-              }}
-              hitSlop={4}
-            >
-              <Ionicons name="lock-closed" size={10} color="rgba(212,175,55,0.6)" />
-              <Text style={styles.uhTeaserText}>
-                Prix UH: {Math.round(product.uhPrice!)} DT
-              </Text>
-            </Pressable>
-          )}
-
-          {/* UH badge (subscriber) */}
-          {isUhSubscribed && hasUhPrice && (
-            <View style={styles.uhBadge}>
-              <Ionicons name="checkmark-circle" size={11} color={GOLD_DIM} />
-              <Text style={styles.uhBadgeText}>Prix UH</Text>
-            </View>
-          )}
-        </View>
-      </Pressable>
-    </Animated.View>
+    <View style={[s.card, { width }]} accessible accessibilityLabel="Chargement du produit">
+      <View style={[s.skeletonImage, { height: width * 1.05 }]} />
+      <View style={s.body}>
+        <View style={[s.skeletonLine, { width: '45%' }]} />
+        <View style={s.skeletonLine} /><View style={[s.skeletonLine, { width: '70%' }]} />
+        <View style={[s.skeletonLine, { height: 44, marginTop: 12 }]} />
+      </View>
+    </View>
   );
 }
 
-const ProductCardV2 = React.memo(ProductCardV2Base);
-export default ProductCardV2;
+function ProductCard({ product, width, cartQuantity, isFavorited, isUhSubscribed = false,
+  onPress, onFavoritePress, onAddToCart, onUpdateQuantity, onUhCtaPress }: Props) {
+  const imageUri = resolveMediaUrl(product.images?.[0]);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const favoritePending = useRef(false);
+  useEffect(() => setImageFailed(false), [imageUri]);
 
-// ─── Exported constants for grid layout ──────────────────────────────────────
+  const hasUhPrice = typeof product.uhPrice === 'number' && product.uhPrice > 0 && product.uhPrice < product.price;
+  const memberPrice = isUhSubscribed && hasUhPrice;
+  const discount = Math.max(0, Math.min(100, product.discount || 0));
+  const price = memberPrice ? product.uhPrice! : product.price * (1 - discount / 100);
+  const reduced = price < product.price;
+  const inStock = product.stock == null || product.stock > 0;
+  const atStockLimit = product.stock != null && cartQuantity >= product.stock;
+  const exclusive = !!product.isUhExclusive && !isUhSubscribed;
 
-export { CARD_WIDTH, GRID_PADDING, CARD_GAP, IMAGE_HEIGHT };
+  const changeCart = async (event: any, delta: number) => {
+    event?.stopPropagation?.();
+    if (pending.current || (delta > 0 && (!inStock || atStockLimit))) return;
+    pending.current = true;
+    setBusy(true);
+    try {
+      lightImpact();
+      if (cartQuantity === 0 && delta > 0) await onAddToCart(event);
+      else await onUpdateQuantity(delta);
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+  return (
+    <View style={[s.card, { width }]}>
+      <View style={[s.imageStage, { height: width * 1.05 }]}>
+        <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={'Voir ' + product.name}
+          style={({ pressed }) => [s.productImageLink, pressed && s.pressed]}>
+          {imageUri && !imageFailed
+            ? <Image source={{ uri: imageUri }} resizeMode="contain" style={s.image} onError={() => setImageFailed(true)} />
+            : <View style={s.imageFallback}><Ionicons name="cube-outline" size={38} color="#807A6B" /><Text style={s.imageFallbackText}>Photo à venir</Text></View>}
+        </Pressable>
+        {(discount > 0 && !memberPrice || product.isFeatured) && (
+          <View style={s.badge}><Text style={s.badgeText}>{discount > 0 && !memberPrice ? '−' + discount + ' %' : 'SÉLECTION'}</Text></View>
+        )}
+        <Pressable style={s.favorite} accessibilityRole="button" accessibilityState={{ selected: isFavorited }}
+          accessibilityLabel={(isFavorited ? 'Retirer des favoris : ' : 'Ajouter aux favoris : ') + product.name}
+          onPress={async (event) => {
+            if (favoritePending.current) return;
+            favoritePending.current = true;
+            try { selectionAsync(); await onFavoritePress(event); } finally { favoritePending.current = false; }
+          }}>
+          <Ionicons name={isFavorited ? 'heart' : 'heart-outline'} size={20} color={isFavorited ? '#AF334C' : '#27251F'} />
+        </Pressable>
+      </View>
+      <View style={s.body}>
+        <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={product.name}>
+          <Text style={s.brand} numberOfLines={1}>{product.brand || product.category}</Text>
+          <Text style={s.name} numberOfLines={2}>{product.name}</Text>
+        </Pressable>
+        <View style={s.stockRow}>
+          <View style={[s.stockDot, !inStock && s.stockDotEmpty]} />
+          <Text style={s.stockText}>{inStock ? 'En stock' : 'Épuisé'}</Text>
+        </View>
+        <View style={s.priceRow}>
+          <Text style={[s.price, memberPrice && s.memberPrice]}>{money(price)}<Text style={s.currency}> DT</Text></Text>
+          {reduced && <Text style={s.oldPrice}>{money(product.price)} DT</Text>}
+        </View>
+        {exclusive ? (
+          <Pressable style={s.cartButton} onPress={onUhCtaPress} accessibilityRole="button" accessibilityLabel="Découvrir l’abonnement UH">
+            <Ionicons name="lock-closed-outline" size={16} color="#17140C" /><Text style={s.cartText}>Découvrir UH</Text>
+          </Pressable>
+        ) : cartQuantity > 0 ? (
+          <View style={s.stepper}>
+            <Pressable style={s.stepperButton} disabled={busy} onPress={(event) => changeCart(event, -1)}
+              accessibilityRole="button" accessibilityLabel={'Diminuer la quantité de ' + product.name}>
+              <Ionicons name={cartQuantity === 1 ? 'trash-outline' : 'remove'} size={18} color={GOLD} />
+            </Pressable>
+            {busy ? <ActivityIndicator size="small" color={GOLD} /> : <Text style={s.quantity}>{cartQuantity}</Text>}
+            <Pressable style={[s.stepperButton, (busy || atStockLimit || !inStock) && s.disabled]}
+              disabled={busy || atStockLimit || !inStock} onPress={(event) => changeCart(event, 1)}
+              accessibilityRole="button" accessibilityLabel={'Augmenter la quantité de ' + product.name}>
+              <Ionicons name="add" size={20} color={GOLD} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable style={({ pressed }) => [s.cartButton, !inStock && s.unavailable, pressed && s.pressed]}
+            disabled={busy || !inStock} onPress={(event) => changeCart(event, 1)} accessibilityRole="button"
+            accessibilityState={{ disabled: busy || !inStock, busy }} accessibilityLabel={'Ajouter au panier : ' + product.name}>
+            {busy ? <ActivityIndicator size="small" color="#17140C" /> : <>
+              <Ionicons name={inStock ? 'bag-add-outline' : 'time-outline'} size={17} color={inStock ? '#17140C' : '#AAA69B'} />
+              <Text style={[s.cartText, !inStock && s.unavailableText]}>{inStock ? 'Ajouter' : 'Épuisé'}</Text>
+            </>}
+          </Pressable>
+        )}
+        {hasUhPrice && <Pressable style={s.memberOffer} onPress={onUhCtaPress} disabled={isUhSubscribed}
+          accessibilityRole={isUhSubscribed ? 'text' : 'button'} accessibilityLabel={isUhSubscribed ? 'Tarif membre UH appliqué' : 'Découvrir le tarif membre UH'}>
+          <Ionicons name={isUhSubscribed ? 'checkmark-circle-outline' : 'diamond-outline'} size={13} color={GOLD} />
+          <Text style={s.memberText}>{isUhSubscribed ? 'Tarif membre UH' : money(product.uhPrice!) + ' DT avec UH'}</Text>
+        </Pressable>}
+      </View>
+    </View>
+  );
+}
+export default React.memo(ProductCard);
 
-const styles = StyleSheet.create({
-  cardOuter: {
-    width: CARD_WIDTH,
-  },
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-  },
-
-  // Image
-  imageWrap: {
-    width: '100%',
-    height: IMAGE_HEIGHT,
-    backgroundColor: '#1A1A1A',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-
-  // Overlays
-  outOfStockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  outOfStockBadge: {
-    backgroundColor: 'rgba(239,68,68,0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  outOfStockText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-
-  discountBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: '#E63946',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  discountText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-
-  // Favorite
-  favBtn: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  favBtnActive: {
-    backgroundColor: 'rgba(255,107,157,0.2)',
-    borderColor: 'rgba(255,107,157,0.3)',
-  },
-
-  // Content
-  content: {
-    padding: 14,
-    paddingTop: 12,
-  },
-  category: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  name: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#F0F0F0',
-    lineHeight: 19,
-    marginBottom: 10,
-    letterSpacing: 0.1,
-  },
-
-  // Price + action row
-  priceActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  priceBlock: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 5,
-    flexShrink: 1,
-  },
-  price: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.1,
-  },
-  strikePrice: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
-    textDecorationLine: 'line-through',
-    fontWeight: '500',
-  },
-
-  // Cart button (compact circle)
-  cartBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: GOLD,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartBtnDisabled: {
-    backgroundColor: '#2A2A2A',
-  },
-
-  // Stepper
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(212,175,55,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.2)',
-    overflow: 'hidden',
-  },
-  stepperBtn: {
-    width: 32,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepperBtnPlus: {
-    backgroundColor: GOLD,
-  },
-  stepperQty: {
-    minWidth: 24,
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#fff',
-  },
-
-  // UH teaser (locked)
-  uhTeaser: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    backgroundColor: 'rgba(212,175,55,0.06)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.12)',
-    alignSelf: 'flex-start',
-  },
-  uhTeaserText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: 'rgba(212,175,55,0.6)',
-    letterSpacing: 0.2,
-  },
-
-  // UH badge (subscribed)
-  uhBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  uhBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: GOLD_DIM,
-    letterSpacing: 0.3,
-  },
+const s = StyleSheet.create({
+  card: { backgroundColor: '#171917', borderRadius: 20, borderWidth: 1, borderColor: '#2A2D27', overflow: 'hidden' },
+  imageStage: { backgroundColor: '#F8F7F3', overflow: 'hidden' },
+  productImageLink: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 18, paddingTop: 35 },
+  image: { width: '100%', height: '100%' },
+  imageFallback: { alignItems: 'center', gap: 8 },
+  imageFallbackText: { fontSize: 11, color: '#686457' },
+  badge: { position: 'absolute', top: 10, left: 9, paddingVertical: 5, paddingHorizontal: 7, backgroundColor: '#E9E3D0', borderRadius: 6 },
+  badgeText: { color: '#504323', fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  favorite: { position: 'absolute', top: 3, right: 3, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  body: { padding: 12 },
+  brand: { color: GOLD, fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  name: { color: '#F5F3EB', fontSize: 14, fontWeight: '600', lineHeight: 20, minHeight: 40 },
+  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
+  stockDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#A2B98F' },
+  stockDotEmpty: { backgroundColor: '#9C978D' },
+  stockText: { color: '#AEB4A7', fontSize: 10 },
+  priceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 5, marginTop: 9, marginBottom: 12, minHeight: 25 },
+  price: { color: '#F5F3EB', fontSize: 20, fontWeight: '800', letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  currency: { fontSize: 11, fontWeight: '500', letterSpacing: 0 },
+  memberPrice: { color: GOLD },
+  oldPrice: { color: '#A6A89E', fontSize: 10, textDecorationLine: 'line-through' },
+  cartButton: { minHeight: 44, backgroundColor: GOLD, borderRadius: 11, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  cartText: { fontSize: 12, fontWeight: '700', color: '#17140C' },
+  unavailable: { backgroundColor: '#292C26' },
+  unavailableText: { color: '#AAA69B' },
+  stepper: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#22271D', borderWidth: 1, borderColor: '#4C4A32', borderRadius: 11 },
+  stepperButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  quantity: { color: GOLD, fontSize: 15, fontWeight: '700' },
+  memberOffer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingTop: 12, minHeight: 44 },
+  memberText: { color: GOLD, fontSize: 10, flexShrink: 1 },
+  pressed: { opacity: 0.75 },
+  disabled: { opacity: 0.35 },
+  skeletonImage: { backgroundColor: '#272A24' },
+  skeletonLine: { height: 12, borderRadius: 5, backgroundColor: '#2C3028', marginBottom: 8 },
 });
+

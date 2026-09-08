@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Gym Presence Verification (MVP).
  * "Verify I am at the gym" — capture/upload photo + optional GPS → show verified / not verified + confidence.
@@ -27,7 +28,7 @@ import AppBackground from '../components/AppBackground';
 
 type NavProp = StackNavigationProp<RootStackParamList, 'GymPresenceVerification'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 type UiState =
   | 'idle'
@@ -89,24 +90,25 @@ export default function GymPresenceVerificationScreen() {
     setState('idle');
     setUploadError(null);
     setResult(null);
-    const { status } = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      setState('permission_denied');
-      setPermissionError(
-        useCamera ? 'Camera permission is required to take a photo.' : 'Photo library permission is required.'
-      );
-      return;
+    // Gallery selection uses the system Photo Picker via launchImageLibraryAsync — no
+    // permission request needed. Only the camera flow needs an explicit permission.
+    if (useCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        setState('permission_denied');
+        setPermissionError('Camera permission is required to take a photo.');
+        return;
+      }
     }
     const pickerResult = useCamera
       ? await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.8,
         })
       : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.8,
+          legacy: false,
         });
     if (pickerResult.canceled || !pickerResult.assets?.[0]) return;
     const uri = pickerResult.assets[0].uri;

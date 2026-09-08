@@ -138,7 +138,20 @@ api.interceptors.response.use(
       } else if (status >= 500) {
         console.error('[API] Server error:', status, { method, baseURL, endpoint });
       }
+
+      // Transparent single retry on transient proxy/deploy errors (502, 503, 504) for GET requests
+      if (config && !config._isRetry && method === 'GET' && (status === 502 || status === 503 || status === 504)) {
+        config._isRetry = true;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return api(config);
+      }
     } else {
+      // Transient network retry for GET requests
+      if (config && !config._isRetry && method === 'GET' && error.code !== 'ECONNABORTED') {
+        config._isRetry = true;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return api(config);
+      }
       // No response = network error, timeout, or server unreachable — log details for APK debugging
       const code = error.code ?? 'UNKNOWN';
       const message = error.message ?? '';

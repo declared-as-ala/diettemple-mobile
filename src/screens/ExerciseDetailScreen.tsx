@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -210,7 +211,7 @@ export default function ExerciseDetailScreen() {
         <View style={styles.tipsSection}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Conseils</Text>
           <View style={[styles.tipCard, { backgroundColor: colors.cardBackground }]}>
-            <Ionicons name="bulb-outline" size={24} color="#D4AF37" />
+            <Ionicons name="bulb-outline" size={24} color={BRAND_YELLOW} />
             <View style={styles.tipContent}>
               <Text style={[styles.tipText, { color: colors.text }]}>
                 Maintenez une forme correcte tout au long de l'exercice pour éviter les blessures.
@@ -218,7 +219,7 @@ export default function ExerciseDetailScreen() {
             </View>
           </View>
           <View style={[styles.tipCard, { backgroundColor: colors.cardBackground }]}>
-            <Ionicons name="bulb-outline" size={24} color="#D4AF37" />
+            <Ionicons name="bulb-outline" size={24} color={BRAND_YELLOW} />
             <View style={styles.tipContent}>
               <Text style={[styles.tipText, { color: colors.text }]}>
                 Respirez correctement: expirez pendant l'effort, inspirez pendant la phase de repos.
@@ -226,7 +227,7 @@ export default function ExerciseDetailScreen() {
             </View>
           </View>
           <View style={[styles.tipCard, { backgroundColor: colors.cardBackground }]}>
-            <Ionicons name="bulb-outline" size={24} color="#D4AF37" />
+            <Ionicons name="bulb-outline" size={24} color={BRAND_YELLOW} />
             <View style={styles.tipContent}>
               <Text style={[styles.tipText, { color: colors.text }]}>
                 Augmentez progressivement l'intensité pour continuer à progresser.

@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,7 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import type { DayProgressStatus } from '../../services/workoutProgressStorage';
 import { getLocalDateKey, formatWeekday } from '../../utils/date';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 export interface WeekDayInfo {

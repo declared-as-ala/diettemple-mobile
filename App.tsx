@@ -90,7 +90,6 @@ const navTheme = (dark: boolean, bg: string) => ({
 
 function AppContent() {
   const { isDarkMode, colors } = useTheme();
-  usePreventScreenCapture(true);
   return (
     <>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />

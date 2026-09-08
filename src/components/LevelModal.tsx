@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import {
   View,
@@ -54,8 +55,8 @@ export default function LevelModal({ visible, onClose }: LevelModalProps) {
   const levelColors: Record<string, string> = {
     Intiate: '#CD7F32', // Bronze
     Fighter: '#C0C0C0', // Silver
-    Warrior: '#FFD700', // Gold
-    Champion: '#FFD700', // Gold
+    Warrior: BRAND_YELLOW, // Gold
+    Champion: BRAND_YELLOW, // Gold
     Elite: '#E8E8E8', // Silver/Grey
   };
 
@@ -87,7 +88,7 @@ export default function LevelModal({ visible, onClose }: LevelModalProps) {
             <Text style={[styles.currentLevelLabel, { color: colors.textSecondary }]}>
               Votre niveau actuel
             </Text>
-            <Text style={[styles.currentLevelText, { color: '#D4AF37' }]}>
+            <Text style={[styles.currentLevelText, { color: BRAND_YELLOW }]}>
               UH {currentLevel.toUpperCase()}
             </Text>
           </View>
@@ -110,7 +111,7 @@ export default function LevelModal({ visible, onClose }: LevelModalProps) {
                       <View 
                         style={[
                           styles.levelConnector, 
-                          { backgroundColor: isCompleted ? '#D4AF37' : '#333333' } 
+                          { backgroundColor: isCompleted ? BRAND_YELLOW : '#333333' } 
                         ]} 
                       />
                     )}
@@ -120,7 +121,7 @@ export default function LevelModal({ visible, onClose }: LevelModalProps) {
                           styles.levelBadgeContainer,
                           {
                             borderColor: isCurrent
-                              ? '#D4AF37'
+                              ? BRAND_YELLOW
                               : isCompleted
                               ? levelColors[levelKey]
                               : '#333333',
@@ -144,7 +145,7 @@ export default function LevelModal({ visible, onClose }: LevelModalProps) {
                             styles.levelBadgeText,
                             {
                               color: isCurrent
-                                ? '#D4AF37'
+                                ? BRAND_YELLOW
                                 : isCompleted
                                 ? levelColors[levelKey]
                                 : colors.textSecondary,
@@ -154,14 +155,14 @@ export default function LevelModal({ visible, onClose }: LevelModalProps) {
                           UH {level.toUpperCase()}
                         </Text>
                         {isCurrent && (
-                          <Text style={[styles.currentLevelIndicator, { color: '#D4AF37' }]}>
+                          <Text style={[styles.currentLevelIndicator, { color: BRAND_YELLOW }]}>
                             (Actuel)
                           </Text>
                         )}
                       </View>
                       {isCompleted && (
                         <View style={styles.checkmarkContainer}>
-                          <Ionicons name="checkmark-circle" size={20} color="#D4AF37" />
+                          <Ionicons name="checkmark-circle" size={20} color={BRAND_YELLOW} />
                         </View>
                       )}
                     </View>
@@ -173,7 +174,7 @@ export default function LevelModal({ visible, onClose }: LevelModalProps) {
 
           {/* Close Button */}
           <TouchableOpacity
-            style={[styles.closeButtonBottom, { backgroundColor: '#D4AF37' }]}
+            style={[styles.closeButtonBottom, { backgroundColor: BRAND_YELLOW }]}
             onPress={onClose}
             activeOpacity={0.8}
           >
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
   },
   currentLevelLabel: {
     fontSize: 14,
@@ -267,12 +268,12 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   levelBadgeCompleted: {
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
   },
   levelBadgeCurrent: {
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
     borderWidth: 4,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 8,

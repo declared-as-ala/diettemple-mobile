@@ -1,7 +1,8 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Recettes: full-width cards, search + filter chips, add-to-journal with portion selector.
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useContext } from 'react';
 import {
   View,
   Text,
@@ -14,52 +15,31 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
-  ScrollView,
+  ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import AppBackground from '../components/AppBackground';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useTheme } from '../context/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DEFAULT_RECIPE_SELECTION, RECIPE_CATEGORIES, selectRecipes, type RecipeSelection } from '../utils/recipeSelection';
 import { useAuthStore } from '../store/authStore';
 import { useRecipeFavoritesStore } from '../store/recipeFavoritesStore';
 import { useSnackbar } from '../components/Snackbar';
-import { getRecipes } from '../services/recipesService';
+import { getAllRecipes } from '../services/recipesService';
 import { meService } from '../services/meService';
 import { getLocalDateKey } from '../utils/date';
 import type { Recipe } from '../types';
 import { Button } from '../components/Button';
 import DrawerScreenContainer from '../components/DrawerScreenContainer';
 
-const GOLD = '#D4AF37';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
+import { resolveMediaUrl } from '../config/api.config';
+
+const GOLD = BRAND_YELLOW;
 const PORTIONS = [0.5, 1, 1.5, 2] as const;
 type Portion = typeof PORTIONS[number];
-
-type CategoryFilter = 'all' | 'proteine' | 'rapide' | 'faible_kcal' | 'petit_dej' | 'dejeuner' | 'diner';
-type PrepFilter = 'all' | '15' | '30' | '45' | '45+';
-type MealPrepFilter = 'all' | 'today' | '2' | '3' | '4';
-
-const CATEGORY_CHIPS: { key: CategoryFilter; label: string }[] = [
-  { key: 'all', label: 'Tous' },
-  { key: 'proteine', label: 'Protéiné' },
-  { key: 'rapide', label: 'Rapide' },
-  { key: 'faible_kcal', label: 'Faible kcal' },
-  { key: 'petit_dej', label: 'Petit-déj' },
-  { key: 'dejeuner', label: 'Déjeuner' },
-  { key: 'diner', label: 'Dîner' },
-];
-
-function matchesCategory(r: Recipe, cat: CategoryFilter): boolean {
-  if (cat === 'all') return true;
-  const tags = (r?.tags && Array.isArray(r.tags) ? r.tags : []).map((t) => String(t).toLowerCase());
-  if (cat === 'proteine') return tags.some((t) => t.includes('protéin') || t.includes('proteine'));
-  if (cat === 'rapide') return tags.some((t) => t.includes('rapide') || t.includes('express'));
-  if (cat === 'faible_kcal') return (r.calories ?? 0) < 300;
-  if (cat === 'petit_dej') return tags.some((t) => t.includes('petit') || t.includes('déj') || t.includes('breakfast'));
-  if (cat === 'dejeuner') return tags.some((t) => t.includes('déjeuner') || t.includes('dejeuner') || t.includes('lunch'));
-  if (cat === 'diner') return tags.some((t) => t.includes('dîner') || t.includes('diner') || t.includes('dinner'));
-  return true;
-}
 
 function recipeIngredientsText(recipe: Recipe): string {
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
@@ -106,7 +86,7 @@ function AddToJournalModal({ recipe, onClose, onConfirm, adding }: AddToJournalM
               />
             ) : (
               <View style={[modal.thumb, modal.thumbFallback]}>
-                <Text style={{ fontSize: 32 }}>🍽️</Text>
+                <Ionicons name="restaurant-outline" size={40} color={GOLD} />
               </View>
             )}
             <View style={{ flex: 1 }}>
@@ -308,7 +288,8 @@ function RecipeCard({
   onAdd: () => void;
   colors: any;
 }) {
-  const img = recipe.posterUrl || recipe.imageUrl;
+  const img = resolveMediaUrl(recipe.posterUrl || recipe.imageUrl);
+  const [failed, setFailed] = useState(false);
   const hasMacros = recipe.protein != null || recipe.carbs != null || recipe.fat != null;
   const ingredientPreview = recipeIngredientsText(recipe);
 
@@ -316,11 +297,11 @@ function RecipeCard({
     <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
       {/* Image */}
       <View style={styles.imageWrap}>
-        {img ? (
-          <Image source={{ uri: img }} style={styles.cardImage} resizeMode="cover" />
+        {img && !failed ? (
+          <Image source={{ uri: img }} onError={() => setFailed(true)} style={styles.cardImage} resizeMode="cover" />
         ) : (
           <View style={[styles.cardImage, styles.imageFallback]}>
-            <Text style={{ fontSize: 40 }}>🍽️</Text>
+            <Ionicons name="restaurant-outline" size={40} color={GOLD} />
           </View>
         )}
         {/* Overlays */}
@@ -331,7 +312,7 @@ function RecipeCard({
             <Text style={styles.kcalUnit}> kcal</Text>
           </View>
         ) : null}
-        <TouchableOpacity style={styles.heartBtn} onPress={onToggleFavorite} hitSlop={8}>
+        <TouchableOpacity style={styles.heartBtn} onPress={onToggleFavorite} accessibilityRole="button" accessibilityLabel={isFavorited ? "Retirer des favoris" : "Ajouter aux favoris"} hitSlop={8}>
           <Ionicons name={isFavorited ? 'heart' : 'heart-outline'} size={20} color={isFavorited ? GOLD : 'rgba(255,255,255,0.7)'} />
         </TouchableOpacity>
         {(recipe.tags || [])[0] ? (
@@ -405,371 +386,84 @@ function RecipeCard({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
+const PALETTE = { cardBackground: '#1D281A', border: '#35432C', text: '#F7F5E9', textSecondary: '#B6C0AC' };
+function FilterChip({ label, selected, onPress }: { label: string; selected?: boolean; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected: !!selected }} onPress={onPress} style={[page.chip, selected && page.chipSelected]}><Text style={[page.chipText, selected && { color: '#182011' }]}>{label}</Text></Pressable>;
+}
+function RecipeFiltersSheet({ value, recipes, search, favorites, favoritesOnly, onClose, onApply }: { value: RecipeSelection; recipes: Recipe[]; search: string; favorites: string[]; favoritesOnly: boolean; onClose: () => void; onApply: (value: RecipeSelection) => void }) {
+  const [draft, setDraft] = useState(value);
+  const [input, setInput] = useState('');
+  const insets = useSafeAreaInsets();
+  const ingredients = [...new Set([...draft.ingredients, ...input.split(',').map(i => i.trim()).filter(Boolean)])];
+  const effective = { ...draft, ingredients };
+  const count = selectRecipes(recipes, effective, search, favorites, favoritesOnly).length;
+  const group = (title: string, field: 'prep' | 'days' | 'sort' | 'match', options: string[][]) => <View style={page.group}><Text style={page.section}>{title}</Text><View style={page.wrap}>{options.map(([key, label]) => <FilterChip key={key} label={label} selected={draft[field] === key} onPress={() => setDraft({ ...draft, [field]: key })} />)}</View></View>;
+  return <Modal transparent animationType="slide" onRequestClose={onClose}><View style={page.overlay}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Fermer les filtres" /><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[page.sheet, { paddingBottom: Math.max(16, insets.bottom), maxHeight: '92%' }]}><View style={page.row}><Text style={page.sheetTitle}>À votre goût</Text><Pressable accessibilityLabel="Fermer les filtres" onPress={onClose} style={page.iconButton}><Ionicons name="close" size={24} color={PALETTE.text} /></Pressable></View><Text style={page.caption}>Combinez les critères pour trouver votre prochain repas.</Text><ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <View style={page.group}><Text style={page.section}>ENVIE DU MOMENT</Text><View style={page.wrap}>{RECIPE_CATEGORIES.map(c => <FilterChip key={c.key} label={c.label} selected={draft.category === c.key} onPress={() => setDraft({ ...draft, category: c.key })} />)}</View></View>
+    {group('TEMPS DE PRÉPARATION', 'prep', [['all','Peu importe'],['15','≤ 15 min'],['30','≤ 30 min'],['45','≤ 45 min'],['45+','Plus de 45 min']])}
+    {group('PRÉPARER À L’AVANCE', 'days', [['all','Tous'],['2','2 jours'],['3','3 jours'],['4','4 jours']])}
+    <View style={page.group}><Text style={page.section}>DANS MON FRIGO</Text><Text style={page.caption}>Séparez les ingrédients par une virgule.</Text><View style={page.search}><TextInput accessibilityLabel="Ingrédients disponibles" placeholder="Poulet, riz, tomate…" placeholderTextColor={PALETTE.textSecondary} value={input} onChangeText={setInput} style={page.input} onSubmitEditing={() => { setDraft(effective); setInput(''); }} /><Pressable style={page.iconButton} accessibilityLabel="Ajouter les ingrédients" onPress={() => { setDraft(effective); setInput(''); }}><Ionicons name="add" size={23} color={GOLD} /></Pressable></View><View style={page.wrap}>{draft.ingredients.map(i => <FilterChip key={i} label={`${i} ×`} selected onPress={() => setDraft({ ...draft, ingredients: draft.ingredients.filter(x => x !== i) })} />)}</View></View>
+    {group('CORRESPONDANCE DES INGRÉDIENTS', 'match', [['partial','Au moins un ingrédient'],['all','J’ai tous les ingrédients']])}
+    {group('TRIER PAR', 'sort', [['recent','Nouveautés'],['time','Les plus rapides'],['calories','Calories croissantes']])}
+  </ScrollView><View style={[page.row, { paddingTop: 12 }]}><Pressable style={page.iconButton} onPress={() => { setDraft(DEFAULT_RECIPE_SELECTION); setInput(''); }}><Text style={page.link}>Effacer</Text></Pressable><Pressable style={[page.apply, { flex: 1 }]} onPress={() => onApply(effective)}><Text style={page.applyText}>Voir {count} recette{count !== 1 ? 's' : ''}</Text></Pressable></View></KeyboardAvoidingView></View></Modal>;
+}
 export default function RecettesScreen() {
+  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0;
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors } = useTheme();
-  const { token } = useAuthStore();
+  const token = useAuthStore(s => s.token);
   const { showSnackbar } = useSnackbar();
   const { favoriteIds, fetchFavorites, addFavorite, removeFavorite, isFavorited } = useRecipeFavoritesStore();
-
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [search, setSearch] = useState('');
+  const [selection, setSelection] = useState<RecipeSelection>(DEFAULT_RECIPE_SELECTION);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tabFilter, setTabFilter] = useState<'all' | 'favorites'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [prepFilter, setPrepFilter] = useState<PrepFilter>('all');
-  const [mealPrepFilter, setMealPrepFilter] = useState<MealPrepFilter>('all');
-  const [availableIngredients, setAvailableIngredients] = useState<string[]>([]);
-  const [ingredientInput, setIngredientInput] = useState('');
-  const [useIngredientsFilter, setUseIngredientsFilter] = useState(false);
-  const [ingredientsModalVisible, setIngredientsModalVisible] = useState(false);
-
-  // Add to journal
+  const [error, setError] = useState(false);
   const [addModalRecipe, setAddModalRecipe] = useState<Recipe | null>(null);
   const [adding, setAdding] = useState(false);
-
+  const addLock = useRef(false);
+  const request = useRef<AbortController | null>(null);
   const load = useCallback(async () => {
-    if (!token) return;
-    try {
-      const list = await getRecipes();
-      setRecipes(Array.isArray(list.recipes) ? list.recipes : []);
-      await fetchFavorites();
-    } catch {
-      setRecipes([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [token, fetchFavorites]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (token) load();
-    }, [token, load])
-  );
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    load();
-  }, [load]);
-
-  const addAvailableIngredient = useCallback(() => {
-    const val = ingredientInput.trim();
-    if (!val) return;
-    setAvailableIngredients((prev) => (prev.includes(val) ? prev : [...prev, val]));
-    setIngredientInput('');
-  }, [ingredientInput]);
-
-  const removeAvailableIngredient = useCallback((value: string) => {
-    setAvailableIngredients((prev) => prev.filter((i) => i !== value));
+    request.current?.abort();
+    const controller = new AbortController(); request.current = controller;
+    setError(false);
+    try { const all = await getAllRecipes(controller.signal); if (!controller.signal.aborted) setRecipes(all); }
+    catch { if (!controller.signal.aborted) setError(true); }
+    finally { if (!controller.signal.aborted) { setLoading(false); setRefreshing(false); } }
   }, []);
-
-  const applyIngredientsFilter = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getRecipes({
-        ingredients: availableIngredients,
-        matchMode: 'partial',
-      });
-      setRecipes(res.recipes || []);
-      setUseIngredientsFilter(true);
-      setIngredientsModalVisible(false);
-    } catch {
-      showSnackbar({ message: 'Impossible de charger les recettes pour le moment.', duration: 2600 });
-    } finally {
-      setLoading(false);
-    }
-  }, [availableIngredients, showSnackbar]);
-
-  const handleToggleFavorite = async (recipe: Recipe) => {
-    if (isFavorited(recipe._id)) {
-      await removeFavorite(recipe._id);
-      showSnackbar({ message: 'Retiré des favoris', duration: 2000 });
-    } else {
-      await addFavorite(recipe._id);
-      showSnackbar({ message: 'Ajouté aux favoris ❤️', duration: 2000 });
-    }
-  };
-
+  useFocusEffect(useCallback(() => { if (token) { void load(); void fetchFavorites(); } return () => request.current?.abort(); }, [token, load, fetchFavorites]));
+  const filtered = useMemo(() => selectRecipes(recipes, selection, search, favoriteIds, favoritesOnly), [recipes, selection, search, favoriteIds, favoritesOnly]);
+  const reset = () => { setSelection(DEFAULT_RECIPE_SELECTION); setSearch(''); setFavoritesOnly(false); };
+  const active = [selection.category !== 'all', selection.prep !== 'all', selection.days !== 'all', selection.ingredients.length > 0, selection.sort !== 'recent'].filter(Boolean).length;
   const handleAddToJournal = async (recipe: Recipe, portion: Portion) => {
-    setAdding(true);
-    try {
-      const todayKey = getLocalDateKey(new Date());
-      await meService.postNutritionLogEntry(todayKey, {
-        items: [{
-          name: recipe.title,
-          grams: Math.round(100 * portion),
-          kcal: Math.round((recipe.calories ?? 0) * portion),
-          protein: Math.round((recipe.protein ?? 0) * portion),
-          carbs: Math.round((recipe.carbs ?? 0) * portion),
-          fat: Math.round((recipe.fat ?? 0) * portion),
-        }],
-      });
-      setAddModalRecipe(null);
-      showSnackbar({ message: `${recipe.title} ajouté au journal ✓`, duration: 2500 });
-    } catch {
-      showSnackbar({ message: 'Erreur lors de l\'ajout', duration: 2500 });
-    } finally {
-      setAdding(false);
-    }
+    if (addLock.current) return; addLock.current = true; setAdding(true);
+    try { await meService.postNutritionLogEntry(getLocalDateKey(new Date()), { items: [{ name: recipe.title, grams: Math.round(100 * portion), kcal: Math.round((recipe.calories ?? 0) * portion), protein: Math.round((recipe.protein ?? 0) * portion), carbs: Math.round((recipe.carbs ?? 0) * portion), fat: Math.round((recipe.fat ?? 0) * portion) }] }); setAddModalRecipe(null); showSnackbar({ message: 'Recette ajoutée au journal', duration: 2500 }); }
+    catch { showSnackbar({ message: 'Impossible d’ajouter la recette. Réessayez.', duration: 3000 }); }
+    finally { addLock.current = false; setAdding(false); }
   };
-
-  const safeRecipes = recipes ?? [];
-  const filtered = useMemo(() => {
-    let list = tabFilter === 'favorites' ? safeRecipes.filter((r) => (favoriteIds ?? []).includes(r._id)) : safeRecipes;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter((r) => (r?.title ?? '').toLowerCase().includes(q));
-    }
-    list = list.filter((r) => matchesCategory(r, categoryFilter));
-    list = list.filter((r) => {
-      if (prepFilter === 'all') return true;
-      const prep = r.preparationTimeMinutes ?? null;
-      if (prep == null) return false;
-      if (prepFilter === '15') return prep <= 15;
-      if (prepFilter === '30') return prep <= 30;
-      if (prepFilter === '45') return prep <= 45;
-      return prep > 45;
-    });
-    list = list.filter((r) => {
-      if (mealPrepFilter === 'all') return true;
-      if (mealPrepFilter === 'today') return !(r.mealPrepDays && r.mealPrepDays.length);
-      const day = Number(mealPrepFilter);
-      return (r.mealPrepDays || []).includes(day);
-    });
-    return list;
-  }, [recipes, favoriteIds, tabFilter, search, categoryFilter, prepFilter, mealPrepFilter]);
-
-  if (!token) {
-    return (
-      <AppBackground>
-        <StatusBar style="light" />
-        <View style={styles.centered}>
-          <Text style={[styles.loginMessage, { color: colors.text }]}>Vous devez être connecté</Text>
-          <Button title="Se connecter" onPress={() => navigation.navigate('Login')} />
-        </View>
-      </AppBackground>
-    );
-  }
-
-  if (loading && safeRecipes.length === 0) {
-    return (
-      <AppBackground>
-        <StatusBar style="light" />
-        <DrawerScreenContainer title="Recettes" backgroundColor="transparent">
-          <View style={{ padding: 16, gap: 12 }}>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <RecipeSkeletonCard key={i} colors={colors} />
-            ))}
-          </View>
-        </DrawerScreenContainer>
-      </AppBackground>
-    );
-  }
-
-  return (
-    <AppBackground useSafeArea={false}>
-      <DrawerScreenContainer title="Recettes" backgroundColor="transparent">
-        <StatusBar style="light" />
-
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => (
-            <RecipeCard
-              recipe={item}
-              isFavorited={isFavorited(item._id)}
-              onToggleFavorite={() => handleToggleFavorite(item)}
-              onAdd={() => setAddModalRecipe(item)}
-              colors={colors}
-            />
-          )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={GOLD} />}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
-              {/* Search */}
-              <View style={[styles.searchWrap, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                <Ionicons name="search" size={18} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.searchInput, { color: colors.text }]}
-                  placeholder="Rechercher une recette…"
-                  placeholderTextColor={colors.textSecondary}
-                  value={search}
-                  onChangeText={setSearch}
-                />
-                {search.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
-                    <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Tous / Favoris */}
-              <View style={styles.tabRow}>
-                {(['all', 'favorites'] as const).map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.tabChip, tabFilter === t && styles.tabChipActive, { borderColor: colors.border }]}
-                    onPress={() => setTabFilter(t)}
-                  >
-                    {t === 'favorites' && (
-                      <Ionicons name="heart" size={15} color={tabFilter === 'favorites' ? '#000' : colors.textSecondary} style={{ marginRight: 5 }} />
-                    )}
-                    <Text style={[styles.tabChipText, { color: tabFilter === t ? '#000' : colors.text }]}>
-                      {t === 'all' ? 'Tous' : 'Favoris'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Category chips */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-                {CATEGORY_CHIPS.map(({ key, label }) => (
-                  <TouchableOpacity
-                    key={key}
-                    style={[styles.categoryChip, categoryFilter === key && styles.categoryChipActive, { borderColor: colors.border }]}
-                    onPress={() => setCategoryFilter(key)}
-                  >
-                    <Text style={[styles.categoryChipText, { color: categoryFilter === key ? '#000' : colors.text }]}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-                {[
-                  { key: 'all', label: 'Temps: Tous' },
-                  { key: '15', label: '≤ 15 min' },
-                  { key: '30', label: '≤ 30 min' },
-                  { key: '45', label: '≤ 45 min' },
-                  { key: '45+', label: '+45 min' },
-                ].map((item) => (
-                  <TouchableOpacity
-                    key={item.key}
-                    style={[styles.categoryChip, prepFilter === (item.key as PrepFilter) && styles.categoryChipActive, { borderColor: colors.border }]}
-                    onPress={() => setPrepFilter(item.key as PrepFilter)}
-                  >
-                    <Text style={[styles.categoryChipText, { color: prepFilter === (item.key as PrepFilter) ? '#000' : colors.text }]}>{item.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-                {[
-                  { key: 'all', label: 'Préparer pour plusieurs jours: Tous' },
-                  { key: 'today', label: "Aujourd'hui seulement" },
-                  { key: '2', label: '2 jours' },
-                  { key: '3', label: '3 jours' },
-                  { key: '4', label: '4 jours' },
-                ].map((item) => (
-                  <TouchableOpacity
-                    key={item.key}
-                    style={[styles.categoryChip, mealPrepFilter === (item.key as MealPrepFilter) && styles.categoryChipActive, { borderColor: colors.border }]}
-                    onPress={() => setMealPrepFilter(item.key as MealPrepFilter)}
-                  >
-                    <Text style={[styles.categoryChipText, { color: mealPrepFilter === (item.key as MealPrepFilter) ? '#000' : colors.text }]}>{item.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <View style={styles.ingredientsFilterRow}>
-                <TouchableOpacity
-                  style={[styles.ingredientsCta, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
-                  onPress={() => setIngredientsModalVisible(true)}
-                >
-                  <Ionicons name="basket-outline" size={16} color={colors.text} />
-                  <Text style={[styles.ingredientsCtaText, { color: colors.text }]}>Recettes avec mes ingrédients</Text>
-                </TouchableOpacity>
-                {(useIngredientsFilter || prepFilter !== 'all' || mealPrepFilter !== 'all') && (
-                  <TouchableOpacity
-                    style={styles.resetFiltersBtn}
-                    onPress={async () => {
-                      setUseIngredientsFilter(false);
-                      setPrepFilter('all');
-                      setMealPrepFilter('all');
-                      setAvailableIngredients([]);
-                      setLoading(true);
-                      try {
-                        const res = await getRecipes();
-                        setRecipes(res.recipes || []);
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                  >
-                    <Text style={styles.resetFiltersText}>Réinitialiser les filtres</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Results count */}
-              {(search.trim() || categoryFilter !== 'all') && (
-                <Text style={[styles.resultCount, { color: colors.textSecondary }]}>
-                  {filtered.length} recette{filtered.length !== 1 ? 's' : ''}
-                </Text>
-              )}
-            </View>
-          }
-          ListEmptyComponent={
-            <View style={[styles.empty, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-              <Ionicons name="restaurant-outline" size={48} color={colors.textSecondary} />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                {tabFilter === 'favorites' ? 'Aucune recette favorite' : 'Aucun résultat'}
-              </Text>
-              <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-                {categoryFilter !== 'all' || search.trim() ? 'Modifiez les filtres.' : 'Les recettes apparaîtront ici.'}
-              </Text>
-            </View>
-          }
-        />
-
-        {/* Add to journal modal */}
-        <AddToJournalModal
-          recipe={addModalRecipe}
-          onClose={() => setAddModalRecipe(null)}
-          onConfirm={handleAddToJournal}
-          adding={adding}
-        />
-
-        <Modal visible={ingredientsModalVisible} transparent animationType="slide" onRequestClose={() => setIngredientsModalVisible(false)}>
-          <Pressable style={modal.overlay} onPress={() => setIngredientsModalVisible(false)}>
-            <Pressable style={modal.sheet} onPress={(e) => e.stopPropagation()}>
-              <View style={modal.handle} />
-              <Text style={styles.modalTitle}>Ingrédients disponibles</Text>
-              <View style={[styles.searchWrap, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                <TextInput
-                  style={[styles.searchInput, { color: colors.text }]}
-                  placeholder="Ajouter mes ingrédients"
-                  placeholderTextColor={colors.textSecondary}
-                  value={ingredientInput}
-                  onChangeText={setIngredientInput}
-                  onSubmitEditing={addAvailableIngredient}
-                />
-                <TouchableOpacity onPress={addAvailableIngredient}>
-                  <Ionicons name="add-circle" size={22} color={GOLD} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.ingredientsChipsRow}>
-                {availableIngredients.map((ing) => (
-                  <TouchableOpacity key={ing} style={styles.availableIngredientChip} onPress={() => removeAvailableIngredient(ing)}>
-                    <Text style={styles.availableIngredientChipText}>{ing}</Text>
-                    <Ionicons name="close" size={14} color="#000" />
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TouchableOpacity style={styles.findRecipesBtn} onPress={applyIngredientsFilter} disabled={availableIngredients.length === 0}>
-                <Text style={styles.findRecipesBtnText}>Trouver des recettes</Text>
-              </TouchableOpacity>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      </DrawerScreenContainer>
-    </AppBackground>
-  );
+  if (!token) return <AppBackground><View style={styles.centered}><Text style={[styles.loginMessage, { color: PALETTE.text }]}>Connectez-vous pour découvrir les recettes</Text><Button title="Se connecter" onPress={() => navigation.navigate('Login')} /></View></AppBackground>;
+  return <AppBackground useSafeArea={false}><DrawerScreenContainer title="Recettes" backgroundColor="#10190E"><StatusBar style="light" /><FlatList data={loading ? [] : filtered} keyExtractor={item => item._id} contentContainerStyle={[page.list, { paddingBottom: tabBarHeight + 32 + (tabBarHeight ? 0 : insets.bottom) }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} tintColor={GOLD} onRefresh={() => { setRefreshing(true); void load(); }} />} renderItem={({ item }) => <RecipeCard recipe={item} colors={PALETTE} isFavorited={isFavorited(item._id)} onAdd={() => setAddModalRecipe(item)} onToggleFavorite={() => { void (isFavorited(item._id) ? removeFavorite(item._id) : addFavorite(item._id)); }} />} ListHeaderComponent={<View style={page.header}>
+    <LinearGradient colors={['#344127','#1D2A17']} style={page.hero}><View style={page.heroBadge}><Ionicons name="leaf-outline" size={15} color={GOLD} /><Text style={page.eyebrow}>LE GOÛT DE BIEN MANGER</Text></View><Text style={page.heroTitle}>Du plaisir dans{ '\n' }votre assiette.</Text><Text style={page.heroText}>Des idées gourmandes, des ingrédients simples. Trouvez l’inspiration pour votre prochain repas.</Text><View style={page.heroFooter}><Ionicons name="restaurant-outline" size={18} color={GOLD} /><Text style={page.heroFooterText}>{loading ? 'Votre inspiration arrive…' : `${recipes.length} recettes à explorer`}</Text></View></LinearGradient>
+    <View style={page.search}><Ionicons name="search-outline" size={21} color={GOLD} /><TextInput accessibilityLabel="Rechercher une recette" placeholder="Une recette, un ingrédient…" placeholderTextColor={PALETTE.textSecondary} style={page.input} value={search} onChangeText={setSearch} />{!!search && <Pressable accessibilityLabel="Effacer la recherche" style={page.iconButton} onPress={() => setSearch('')}><Ionicons name="close" size={20} color={PALETTE.text} /></Pressable>}</View>
+    <View style={page.row}><View style={[page.row, { flex: 1 }]}><FilterChip label="Explorer" selected={!favoritesOnly} onPress={() => setFavoritesOnly(false)} /><FilterChip label="Favoris" selected={favoritesOnly} onPress={() => setFavoritesOnly(true)} /></View><Pressable accessibilityRole="button" accessibilityLabel="Ouvrir les filtres" style={page.filterButton} onPress={() => setSheet(true)}><Ionicons name="options-outline" size={21} color={GOLD} /><Text style={page.link}>{active || 'Filtres'}</Text></Pressable></View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{RECIPE_CATEGORIES.map(c => <FilterChip key={c.key} label={c.label} selected={selection.category === c.key} onPress={() => setSelection({ ...selection, category: c.key })} />)}</ScrollView>
+    <View style={page.wrap}>{selection.prep !== 'all' && <FilterChip label={`Temps ${selection.prep === '45+' ? '> 45' : '≤ ' + selection.prep} min ×`} onPress={() => setSelection({ ...selection, prep: 'all' })} />}{selection.days !== 'all' && <FilterChip label={`${selection.days} jours ×`} onPress={() => setSelection({ ...selection, days: 'all' })} />}{selection.ingredients.map(i => <FilterChip key={i} label={`${i} ×`} onPress={() => setSelection({ ...selection, ingredients: selection.ingredients.filter(x => x !== i) })} />)}{selection.sort !== 'recent' && <FilterChip label={`${selection.sort === 'time' ? 'Plus rapides' : 'Calories'} ×`} onPress={() => setSelection({ ...selection, sort: 'recent' })} />}</View>
+    <View style={page.row}><Text style={page.results}>{loading ? 'Chargement…' : `${filtered.length} recette${filtered.length !== 1 ? 's' : ''}`}</Text>{(active > 0 || !!search || favoritesOnly) && <Pressable onPress={reset} style={page.iconButton}><Text style={page.link}>Tout effacer</Text></Pressable>}</View>
+    {error && <View style={page.empty}><Text style={page.section}>Chargement impossible</Text><Text style={page.caption}>Vérifiez votre connexion et réessayez.</Text><Pressable style={page.apply} onPress={() => { setLoading(true); void load(); }}><Text style={page.applyText}>Réessayer</Text></Pressable></View>}
+  </View>} ListEmptyComponent={loading ? <RecipeSkeletonCard colors={PALETTE} /> : error ? null : <View style={page.empty}><Ionicons name={favoritesOnly ? 'heart-outline' : 'restaurant-outline'} size={36} color={GOLD} /><Text style={page.sheetTitle}>{favoritesOnly ? 'Vos favoris vous attendent' : 'Aucune recette trouvée'}</Text><Text style={page.caption}>{favoritesOnly ? 'Touchez le cœur d’une recette pour la retrouver ici.' : 'Essayez moins de critères ou un autre ingrédient.'}</Text><Pressable style={page.apply} onPress={reset}><Text style={page.applyText}>Explorer toutes les recettes</Text></Pressable></View>} />
+    {sheet && <RecipeFiltersSheet value={selection} recipes={recipes} search={search} favorites={favoriteIds} favoritesOnly={favoritesOnly} onClose={() => setSheet(false)} onApply={next => { setSelection(next); setSheet(false); }} />}
+    <AddToJournalModal key={addModalRecipe?._id || 'closed'} recipe={addModalRecipe} onClose={() => { if (!adding) setAddModalRecipe(null); }} onConfirm={handleAddToJournal} adding={adding} />
+  </DrawerScreenContainer></AppBackground>;
 }
+const page = StyleSheet.create({
+ list: { padding: 16, paddingBottom: 32, width: '100%', maxWidth: 720, alignSelf: 'center' }, header: { gap: 14, marginBottom: 14 },
+ hero: { borderRadius: 26, padding: 24, borderWidth: 1, borderColor: '#4A5635', overflow: 'hidden' }, heroBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 }, eyebrow: { color: GOLD, fontSize: 10, letterSpacing: 1.5, fontWeight: '800', flexShrink: 1 }, heroTitle: { fontSize: 32, lineHeight: 37, fontWeight: '800', letterSpacing: -1, color: '#FAF7E9', marginVertical: 14 }, heroText: { fontSize: 14, lineHeight: 22, color: '#CFD5C1' }, heroFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#4A5635' }, heroFooterText: { color: '#E4E8D9', fontSize: 12, fontWeight: '600' },
+ search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1D281A', borderWidth: 1, borderColor: '#3E4A32', borderRadius: 16, paddingLeft: 14, minHeight: 54 }, input: { flex: 1, minWidth: 0, color: '#F7F5E9', fontSize: 14, paddingVertical: 14 }, row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }, wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 13, paddingVertical: 10, backgroundColor: '#1D281A', borderWidth: 1, borderColor: '#3A472F', borderRadius: 14 }, chipSelected: { backgroundColor: GOLD, borderColor: GOLD }, chipText: { color: '#D6DECB', fontSize: 12, fontWeight: '700' }, filterButton: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 10, borderWidth: 1, borderColor: '#596035', borderRadius: 14 }, link: { color: GOLD, fontWeight: '700', fontSize: 12 }, results: { color: '#F7F5E9', fontSize: 18, fontWeight: '800' }, iconButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+ overlay: { flex: 1, backgroundColor: '#000000AA', justifyContent: 'flex-end' }, sheet: { backgroundColor: '#172112', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, width: '100%', maxWidth: 720, alignSelf: 'center' }, sheetTitle: { color: '#F7F5E9', fontSize: 23, fontWeight: '800' }, caption: { color: '#B6C0AC', fontSize: 13, lineHeight: 21 }, group: { gap: 10, marginTop: 24 }, section: { color: '#E2E8D7', fontSize: 11, fontWeight: '800', letterSpacing: 1 }, apply: { backgroundColor: GOLD, padding: 15, borderRadius: 14, alignItems: 'center', minHeight: 48 }, applyText: { color: '#182011', fontSize: 14, fontWeight: '800' }, empty: { backgroundColor: '#1D281A', padding: 24, borderRadius: 22, gap: 16, alignItems: 'center' },
+});
 
 const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
@@ -819,9 +513,9 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    borderRadius: 18, borderWidth: 1, overflow: 'hidden', marginBottom: 14,
+    borderRadius: 24, borderWidth: 1, overflow: 'hidden', marginBottom: 14,
   },
-  imageWrap: { position: 'relative', height: 180 },
+  imageWrap: { position: 'relative', height: 230 },
   cardImage: { width: '100%', height: '100%' },
   imageFallback: { backgroundColor: '#1C1C1E', alignItems: 'center', justifyContent: 'center' },
   imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
@@ -835,7 +529,7 @@ const styles = StyleSheet.create({
   kcalUnit: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
   heartBtn: {
     position: 'absolute', top: 10, right: 12,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, padding: 6,
+    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 14, padding: 12,
   },
   tagBadge: {
     position: 'absolute', top: 10, left: 12,
@@ -844,8 +538,8 @@ const styles = StyleSheet.create({
   },
   tagBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
-  cardBody: { padding: 14, gap: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '800', lineHeight: 22 },
+  cardBody: { padding: 18, gap: 12 },
+  cardTitle: { fontSize: 20, fontWeight: '800', lineHeight: 27 },
   ingredients: { fontSize: 12, lineHeight: 18 },
   recipeMetaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   recipeMetaText: { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '700' },

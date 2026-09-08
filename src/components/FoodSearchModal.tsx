@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { foodsService } from '../services/foodsService';
 import type { FoodSearchItem } from '../services/meService';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 type Props = {
   visible: boolean;

@@ -1,9 +1,10 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { nutritionColors } from '../../constants/nutritionColors';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const R = 58;
 const CIRCUM = 2 * Math.PI * R;
 const DIAMETER = 140;

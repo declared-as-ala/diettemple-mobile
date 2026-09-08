@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import {
   View,
@@ -19,7 +20,7 @@ import { useSubscription } from '../context/SubscriptionContext';
 
 type NavProp = StackNavigationProp<RootStackParamList, 'UHPreview'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const ACCENT_DIM = 'rgba(212,175,55,0.12)';
 const { width } = Dimensions.get('window');
 

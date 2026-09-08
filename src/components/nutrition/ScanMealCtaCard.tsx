@@ -1,9 +1,10 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 
 interface ActionButtonsProps {
   onScanPress: () => void;
@@ -23,7 +24,7 @@ export function MealActionButtons({ onScanPress, onRecipePress, scanDisabled }: 
         activeOpacity={0.85}
       >
         <LinearGradient
-          colors={scanDisabled ? ['#222', '#222'] : ['#D4AF37', '#C19B28']}
+          colors={scanDisabled ? ['#222', '#222'] : [BRAND_YELLOW, '#C19B28']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.btnGradient}
@@ -133,7 +134,7 @@ const legacyStyles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 18,

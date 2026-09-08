@@ -1,294 +1,105 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  Pressable,
-  Animated,
-  ScrollView,
-  Switch,
-  Dimensions,
-} from 'react-native';
+import { BRAND_YELLOW } from '../../constants/brand';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView, Switch, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { CATEGORY_CHIPS, SORT_OPTIONS, type SortId } from './TopFilterBar';
+import { SORT_OPTIONS, type SortId } from './TopFilterBar';
 import type { ProductFilters } from '../../services/productsService';
+import type { ProductCategoryOption } from '../../utils/productCategories';
 
-const GOLD = '#D4AF37';
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-interface FilterBottomSheetProps {
+interface Props {
   visible: boolean;
+  categories: ProductCategoryOption[];
   onClose: () => void;
   initialFilters: ProductFilters;
   onApply: (filters: ProductFilters) => void;
   onReset: () => void;
 }
+const GOLD = BRAND_YELLOW;
 
-export default function FilterBottomSheet({
-  visible,
-  onClose,
-  initialFilters,
-  onApply,
-  onReset,
-}: FilterBottomSheetProps) {
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-
-  const [category, setCategory] = React.useState(initialFilters.category ?? '');
-  const [sort, setSort] = React.useState<SortId>((initialFilters.sort as SortId) ?? 'popular');
-  const [inStock, setInStock] = React.useState(initialFilters.inStock ?? false);
-
+export default function FilterBottomSheet({ visible, categories, onClose, initialFilters, onApply, onReset }: Props) {
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [category, setCategory] = useState('');
+  const [sort, setSort] = useState<SortId>('popular');
+  const [inStock, setInStock] = useState(false);
   useEffect(() => {
     if (visible) {
-      setCategory(initialFilters.category ?? '');
-      setSort((initialFilters.sort as SortId) ?? 'popular');
-      setInStock(initialFilters.inStock ?? false);
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: 28,
-          stiffness: 200,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: SCREEN_HEIGHT,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      setCategory(initialFilters.category || '');
+      setSort(initialFilters.sort || 'popular');
+      setInStock(!!initialFilters.inStock);
     }
-  }, [visible]);
-
-  const handleApply = () => {
-    onApply({
-      ...initialFilters,
-      category: category || undefined,
-      sort: sort === 'popular' ? undefined : sort,
-      inStock: inStock || undefined,
-    });
-    onClose();
-  };
-
-  const handleReset = () => {
-    setCategory('');
-    setSort('popular');
-    setInStock(false);
-    onReset();
-    onClose();
-  };
+  }, [visible, initialFilters.category, initialFilters.sort, initialFilters.inStock]);
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View
-        style={[styles.backdrop, { opacity: backdropOpacity }]}
-        pointerEvents="box-none"
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      </Animated.View>
-
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-        {/* Handle */}
-        <View style={styles.handleWrap}>
-          <View style={styles.handle} />
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={s.modal}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Fermer les filtres" />
+        <View style={[s.sheet, { maxHeight: height - insets.top - 24, paddingBottom: Math.max(20, insets.bottom) }]} accessibilityViewIsModal>
+          <View style={s.handle} />
+          <View style={s.heading}>
+            <View><Text style={s.eyebrow}>VOTRE SÉLECTION</Text><Text style={s.title}>Affiner la recherche</Text></View>
+            <Pressable onPress={onClose} style={s.close} accessibilityRole="button" accessibilityLabel="Fermer les filtres">
+              <Ionicons name="close" size={23} color="#EDEFE7" />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+            <Text style={s.section}>Catégories</Text>
+            <View style={s.chips}>{categories.map((item) => <Pressable key={item.id}
+              style={[s.chip, category === item.id && s.chipActive]} onPress={() => setCategory(item.id)}
+              accessibilityRole="button" accessibilityState={{ selected: category === item.id }}>
+              <Text style={[s.chipText, category === item.id && s.chipTextActive]}>{item.label}</Text>
+            </Pressable>)}</View>
+            <Text style={s.section}>Trier les produits</Text>
+            {SORT_OPTIONS.map((item) => <Pressable key={item.id} style={s.sortRow} onPress={() => setSort(item.id)}
+              accessibilityRole="radio" accessibilityState={{ checked: sort === item.id }}>
+              <Text style={[s.sortText, sort === item.id && { color: GOLD }]}>{item.label}</Text>
+              <Ionicons name={sort === item.id ? 'radio-button-on' : 'radio-button-off'} size={21} color={sort === item.id ? GOLD : '#7B8472'} />
+            </Pressable>)}
+            <View style={s.stockRow}>
+              <View style={{ flex: 1 }}><Text style={s.stockTitle}>En stock uniquement</Text><Text style={s.stockCaption}>Afficher les produits disponibles</Text></View>
+              <Switch value={inStock} onValueChange={setInStock} accessibilityLabel="En stock uniquement"
+                trackColor={{ false: '#3C4235', true: '#82743F' }} thumbColor={inStock ? GOLD : '#C2C7B8'} />
+            </View>
+          </ScrollView>
+          <View style={s.footer}>
+            <Pressable style={s.reset} onPress={() => { onReset(); onClose(); }} accessibilityRole="button">
+              <Text style={s.resetText}>Réinitialiser</Text>
+            </Pressable>
+            <Pressable style={s.apply} onPress={() => {
+              onApply({ ...initialFilters, page: 1, category: category || undefined, sort, inStock: inStock || undefined });
+              onClose();
+            }} accessibilityRole="button"><Text style={s.applyText}>Voir les produits</Text><Ionicons name="arrow-forward" size={18} color="#17180E" /></Pressable>
+          </View>
         </View>
-
-        {/* Title */}
-        <Text style={styles.title}>Filtres</Text>
-
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Category */}
-          <Text style={styles.sectionLabel}>Catégorie</Text>
-          <View style={styles.chipsWrap}>
-            {CATEGORY_CHIPS.map((chip) => (
-              <Pressable
-                key={chip.id || 'all'}
-                style={[styles.chip, category === chip.id && styles.chipActive]}
-                onPress={() => setCategory(chip.id)}
-              >
-                <Text style={[styles.chipText, category === chip.id && styles.chipTextActive]}>
-                  {chip.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Sort */}
-          <Text style={styles.sectionLabel}>Trier par</Text>
-          <View style={styles.chipsWrap}>
-            {SORT_OPTIONS.filter((opt) => opt.id !== 'popular').map((opt) => (
-              <Pressable
-                key={opt.id}
-                style={[styles.chip, sort === opt.id && styles.chipActive]}
-                onPress={() => setSort(opt.id)}
-              >
-                <Text style={[styles.chipText, sort === opt.id && styles.chipTextActive]}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* In stock toggle */}
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>En stock uniquement</Text>
-            <Switch
-              value={inStock}
-              onValueChange={setInStock}
-              trackColor={{ false: '#2A2A2A', true: 'rgba(212,175,55,0.4)' }}
-              thumbColor={inStock ? GOLD : '#666'}
-            />
-          </View>
-        </ScrollView>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Pressable style={styles.resetBtn} onPress={handleReset}>
-            <Text style={styles.resetBtnText}>Réinitialiser</Text>
-          </Pressable>
-          <Pressable style={styles.applyBtn} onPress={handleApply}>
-            <Text style={styles.applyBtnText}>Appliquer</Text>
-          </Pressable>
-        </View>
-      </Animated.View>
+      </View>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    maxHeight: SCREEN_HEIGHT * 0.7,
-    backgroundColor: '#0C0C0C',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: 'rgba(255,255,255,0.08)',
-    paddingBottom: 34,
-  },
-  handleWrap: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 20,
-    marginTop: 8,
-    letterSpacing: 0.2,
-  },
-  scroll: {
-    maxHeight: 320,
-    paddingHorizontal: 24,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 24,
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  chipActive: {
-    backgroundColor: 'rgba(212,175,55,0.12)',
-    borderColor: 'rgba(212,175,55,0.35)',
-  },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.6)',
-  },
-  chipTextActive: {
-    color: GOLD,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    paddingVertical: 4,
-  },
-  toggleLabel: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: '500',
-  },
-  footer: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    gap: 12,
-  },
-  resetBtn: {
-    flex: 1,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  resetBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-  },
-  applyBtn: {
-    flex: 1,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: GOLD,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  applyBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#000',
-  },
+const s = StyleSheet.create({
+  modal: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.72)' },
+  sheet: { backgroundColor: '#171C14', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: '#3A412E', paddingTop: 12 },
+  handle: { width: 36, height: 4, backgroundColor: '#59604F', borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
+  heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 22 },
+  eyebrow: { color: GOLD, fontSize: 10, letterSpacing: 1.6, fontWeight: '700', marginBottom: 7 },
+  title: { color: '#F3F4EB', fontSize: 21, fontWeight: '700' },
+  close: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#282F22', justifyContent: 'center', alignItems: 'center' },
+  scroll: { paddingHorizontal: 22, paddingBottom: 12 },
+  section: { fontSize: 13, fontWeight: '700', color: '#F3F4EB', marginBottom: 12 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 26 },
+  chip: { minHeight: 44, paddingHorizontal: 15, paddingVertical: 12, borderRadius: 23, backgroundColor: '#252D20', borderWidth: 1, borderColor: '#3C4532' },
+  chipActive: { backgroundColor: GOLD, borderColor: GOLD },
+  chipText: { color: '#CDD2C4', fontSize: 12, fontWeight: '600' },
+  chipTextActive: { color: '#1B1C11' },
+  sortRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: '#2D3527' },
+  sortText: { fontSize: 14, color: '#CED3C5' },
+  stockRow: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingTop: 24, paddingBottom: 12 },
+  stockTitle: { fontSize: 14, fontWeight: '600', color: '#F3F4EB' },
+  stockCaption: { fontSize: 11, color: '#A5AE99', marginTop: 5 },
+  footer: { flexDirection: 'row', gap: 10, paddingTop: 12, paddingHorizontal: 22 },
+  reset: { minHeight: 50, justifyContent: 'center', paddingHorizontal: 10 },
+  resetText: { fontSize: 12, color: '#BCC5AE', fontWeight: '600' },
+  apply: { flex: 1, minHeight: 50, borderRadius: 13, backgroundColor: GOLD, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 10 },
+  applyText: { fontSize: 12, fontWeight: '800', color: '#17180E' },
 });
+

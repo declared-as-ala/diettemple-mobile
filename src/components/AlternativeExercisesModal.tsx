@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import {
   View,
@@ -99,7 +100,7 @@ export default function AlternativeExercisesModal({
                       </Text>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={24} color="#D4AF37" />
+                  <Ionicons name="chevron-forward" size={24} color={BRAND_YELLOW} />
                 </TouchableOpacity>
               ))
             )}
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   headerSubtitle: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -151,10 +152,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
   },
   currentLabel: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   alternativeMuscle: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,

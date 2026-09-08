@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -7,7 +8,7 @@ import { RootStackParamList } from '../types';
 
 type NavProp = StackNavigationProp<RootStackParamList, 'Subscribe'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 export default function SubscribeScreen() {
   const navigation = useNavigation<NavProp>();

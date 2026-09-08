@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -7,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../types';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 type NavProp = StackNavigationProp<RootStackParamList, 'RenewRequest'>;
 
 export default function RenewRequestScreen() {

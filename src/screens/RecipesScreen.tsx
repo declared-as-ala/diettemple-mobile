@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Recipes (Recette) screen – MVP placeholder.
  * Sections: Breakfast / Lunch / Dinner / Snacks with "Coming soon" and View meal plan CTA.
@@ -10,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useDrawerOpen } from '../navigation/DrawerOpenContext';
 import { useTheme } from '../context/ThemeContext';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 const SECTIONS = [
   { key: 'breakfast', title: 'Breakfast', icon: 'sunny-outline' as const },

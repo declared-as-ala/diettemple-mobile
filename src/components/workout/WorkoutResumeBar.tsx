@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +10,7 @@ import {
   type PersistedWorkoutSnapshotV1,
 } from '../../store/activeWorkoutPersistStore';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 function getDeepestRouteName(state: { routes: { name: string; state?: unknown }[]; index: number } | undefined): string | undefined {
   if (!state?.routes?.length || state.index == null) return undefined;

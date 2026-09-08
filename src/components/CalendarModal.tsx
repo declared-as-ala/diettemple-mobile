@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -197,7 +198,7 @@ export default function CalendarModal({
                     key={index}
                     style={[
                       styles.dateBox,
-                      isSelectedDate && [styles.dateBoxSelected, { backgroundColor: '#D4AF37' }],
+                      isSelectedDate && [styles.dateBoxSelected, { backgroundColor: BRAND_YELLOW }],
                       { borderColor: colors.border },
                     ]}
                     onPress={() => handleDatePress(date)}
@@ -222,12 +223,12 @@ export default function CalendarModal({
                       <Ionicons
                         name="checkmark-circle"
                         size={16}
-                        color={isSelectedDate ? '#000000' : '#D4AF37'}
+                        color={isSelectedDate ? '#000000' : BRAND_YELLOW}
                         style={styles.statusIcon}
                       />
                     )}
                     {status === 'workout' && !isSelectedDate && (
-                      <View style={[styles.workoutDot, { backgroundColor: '#D4AF37' }]} />
+                      <View style={[styles.workoutDot, { backgroundColor: BRAND_YELLOW }]} />
                     )}
                     {status === 'rest' && !isSelectedDate && (
                       <Ionicons
@@ -256,11 +257,11 @@ export default function CalendarModal({
           {/* Legend */}
           <View style={styles.legend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#D4AF37' }]} />
+              <View style={[styles.legendDot, { backgroundColor: BRAND_YELLOW }]} />
               <Text style={[styles.legendText, { color: colors.textSecondary }]}>Séance</Text>
             </View>
             <View style={styles.legendItem}>
-              <Ionicons name="checkmark-circle" size={16} color="#D4AF37" />
+              <Ionicons name="checkmark-circle" size={16} color={BRAND_YELLOW} />
               <Text style={[styles.legendText, { color: colors.textSecondary }]}>Terminé</Text>
             </View>
             <View style={styles.legendItem}>
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     position: 'absolute',
     bottom: 8,
   },

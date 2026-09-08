@@ -1,14 +1,16 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Custom slide-in drawer panel with programmatic premium background.
  */
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Animated,
+  Modal,
+  useWindowDimensions,
   Pressable,
   Platform,
   StatusBar,
@@ -16,7 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg';
+import Svg, { Circle, Defs, RadialGradient, Stop, Ellipse, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
@@ -27,9 +29,9 @@ import { rootNavigationRef } from './rootNavigationRef';
 import type { HomeDrawerParamList } from './HomeDrawerStack';
 import { getLevelDisplayName, getLevelImageSource } from '../utils/levelAssets';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const DRAWER_WIDTH = 280;
-const TAB_BAR_GUARD_SPACE = 72;
+
 
 const MENU_ITEMS: { name: keyof HomeDrawerParamList; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { name: 'Main',    label: 'Accueil',  icon: 'home-outline' },
@@ -38,6 +40,17 @@ const MENU_ITEMS: { name: keyof HomeDrawerParamList; label: string; icon: keyof 
 ];
 
 // ── Programmatic sidebar background ──────────────────────────────────────────
+
+function MenuIcon({ name, color }: { name: keyof HomeDrawerParamList; color: string }) {
+  const paths: Partial<Record<keyof HomeDrawerParamList, string>> = {
+    Main: 'M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9',
+    Recipes: 'M4 3v5a3 3 0 0 0 6 0V3M7 3v18M17 3v10h4V3c-3 0-4 4-4 10M21 13v8',
+    Gallery: 'M3 4h18v16H3zM3 16l5-5 5 5 3-3 5 5M15 8h.01',
+  };
+  return <Svg width={22} height={22} viewBox="0 0 24 24" accessible={false}>
+    <Path d={paths[name]} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>;
+}
 
 function SidebarBackground() {
   return (
@@ -53,7 +66,7 @@ function SidebarBackground() {
       <Svg width={DRAWER_WIDTH} height={300} style={{ position: 'absolute', top: -20, left: -30 }}>
         <Defs>
           <RadialGradient id="g1" cx="40%" cy="40%" r="55%">
-            <Stop offset="0%"   stopColor="#D4AF37" stopOpacity="0.22" />
+            <Stop offset="0%"   stopColor={BRAND_YELLOW} stopOpacity="0.22" />
             <Stop offset="60%"  stopColor="#A07820" stopOpacity="0.07" />
             <Stop offset="100%" stopColor="#000000" stopOpacity="0" />
           </RadialGradient>
@@ -94,23 +107,13 @@ export default function DrawerPanel() {
   const { user, logout } = useAuthStore();
   const { profile } = useProfileStore();
   const { subscriptionState } = useSubscription();
-  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  const overlayAnim = useRef(new Animated.Value(0)).current;
-
+  const { width } = useWindowDimensions();
   // Top space: status bar height on Android, safe area on iOS
   const topSpace = Platform.OS === 'android'
     ? (StatusBar.currentHeight ?? 24) + 16
     : insets.top + 16;
 
-  // Bottom space: keep logout clearly above bottom tab/navigation bars.
-  const bottomSpace = Math.max(48 + TAB_BAR_GUARD_SPACE, insets.bottom + 24 + TAB_BAR_GUARD_SPACE);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(slideAnim, { toValue: isOpen ? 0 : -DRAWER_WIDTH, duration: 260, useNativeDriver: true }),
-      Animated.timing(overlayAnim, { toValue: isOpen ? 1 : 0, duration: 260, useNativeDriver: true }),
-    ]).start();
-  }, [isOpen]);
+  const bottomSpace = Math.max(24, insets.bottom + 16);
 
   const displayName = profile?.name || user?.name || 'Membre';
   const tierLabel = getLevelDisplayName(user?.level);
@@ -133,20 +136,13 @@ export default function DrawerPanel() {
     if (nav) nav.navigate(name as any);
   };
 
+  // Fresh native overlay avoids retaining off-screen Android text/icon layers.
+  if (!isOpen) return null;
   return (
-    <>
-      {/* Backdrop */}
-      <Animated.View
-        pointerEvents={isOpen ? 'auto' : 'none'}
-        style={[styles.overlay, { opacity: overlayAnim }]}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
-      </Animated.View>
-
-      {/* Panel */}
-      <Animated.View
-        style={[styles.panel, { width: DRAWER_WIDTH, transform: [{ translateX: slideAnim }] }]}
-      >
+    <Modal visible transparent animationType="fade" onRequestClose={closeDrawer} statusBarTranslucent>
+      <View style={{ flex: 1 }} accessibilityViewIsModal>
+        <Pressable style={styles.overlay} onPress={closeDrawer} accessibilityRole="button" accessibilityLabel="Fermer le menu" />
+        <View style={[styles.panel, { width: Math.min(DRAWER_WIDTH, width - 32) }]}>
         <SidebarBackground />
 
         {/* ── Header (level medallion + identity + subscription) ─── */}
@@ -199,27 +195,31 @@ export default function DrawerPanel() {
 
         {/* ── Menu ───────────────────────────────────────────────────── */}
         <ScrollView
+          removeClippedSubviews={false}
+          keyboardShouldPersistTaps="handled"
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           {MENU_ITEMS.map((item) => {
             const current = getCurrentRouteName();
-            const active = current === item.name || (current === 'DayGalleryDetails' && item.name === 'Gallery');
+            const active = current === item.name || (['DayGalleryDetails', 'GalleryCompare'].includes(current) && item.name === 'Gallery');
             return (
-              <TouchableOpacity
+              <Pressable
                 key={item.name}
-                style={[styles.item, active && styles.itemActive]}
+                style={({ pressed }) => [styles.item, active && styles.itemActive, pressed && { backgroundColor: '#302B18' }]}
                 onPress={() => onItemPress(item.name)}
-                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                accessibilityState={{ selected: active }}
               >
                 {active && <View style={styles.itemPill} />}
                 <View style={[styles.iconBox, active && styles.iconBoxActive]}>
-                  <Ionicons name={item.icon as any} size={19} color={active ? '#000' : 'rgba(255,255,255,0.55)'} />
+                  <MenuIcon name={item.name} color={active ? '#15180F' : '#F1F3E7'} />
                 </View>
                 <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
                 {active && <Ionicons name="chevron-forward" size={13} color={ACCENT} style={styles.chevron} />}
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </ScrollView>
@@ -241,8 +241,9 @@ export default function DrawerPanel() {
             </View>
           </TouchableOpacity>
         </View>
-      </Animated.View>
-    </>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -255,6 +256,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   panel: {
+    backgroundColor: '#0A0C08',
     position: 'absolute',
     left: 0,
     top: 0,
@@ -293,7 +295,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   levelMedallionShadow: {
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -360,6 +362,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingTop: 14, paddingBottom: 8 },
   item: {
+    backgroundColor: '#14180F',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -397,7 +400,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 15,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.65)',
+    color: '#E4E8D8',
     flex: 1,
   },
   labelActive: { color: '#FFFFFF', fontWeight: '800' },

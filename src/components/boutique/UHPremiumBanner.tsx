@@ -1,35 +1,39 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
-  View,
-  StyleSheet,
   Image,
   ImageBackground,
+  Pressable,
+  StyleSheet,
   Text,
-  TouchableOpacity,
-  Dimensions,
+  View,
+  StyleProp,
+  ViewStyle,
   Animated,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
-const { width } = Dimensions.get('window');
-const HORIZONTAL_MARGIN = 12;
-const BANNER_WIDTH = width - HORIZONTAL_MARGIN * 2;
-const BANNER_HEIGHT = Math.round(BANNER_WIDTH / 1.3);
-const BORDER_RADIUS = 20;
-const UH_BANNER_BACKGROUND = require('../../../assets/background.png');
-
-interface UHPremiumBannerProps {
+interface Props {
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function UHPremiumBanner({ onPress }: UHPremiumBannerProps) {
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+const BULLET_POINTS = [
+  'Alliance science & terrain',
+  'Nutrition durable & vivable',
+  'Instructions simples et précises',
+  'Diagnostic sur mesure',
+];
+
+export default function UHPremiumBanner({ onPress, style }: Props) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
       toValue: 0.98,
       useNativeDriver: true,
-      speed: 60,
+      speed: 45,
     }).start();
   };
 
@@ -37,223 +41,246 @@ export default function UHPremiumBanner({ onPress }: UHPremiumBannerProps) {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 60,
+      speed: 45,
     }).start();
   };
 
   return (
-    <Animated.View
-      style={[
-        styles.wrapper,
-        { transform: [{ scale: scaleAnim }] },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.bannerTouchable}
+    <Animated.View style={[s.wrapper, { transform: [{ scale: scaleAnim }] }, style]}>
+      <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        activeOpacity={0.95}
+        style={s.pressable}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="The Ultimate Human : Path. Fini l'improvisation. Découvrir UH"
       >
         <ImageBackground
-          source={UH_BANNER_BACKGROUND}
-          style={styles.surface}
-          imageStyle={styles.backgroundImage}
+          source={require('../../../assets/background.png')}
+          style={s.surface}
+          imageStyle={s.bgImage}
           resizeMode="cover"
         >
-          {/* Premium dark overlay */}
+          {/* Deep Dark Velvet Gradient Overlay */}
           <LinearGradient
-            colors={['rgba(0,0,0,0.58)', 'rgba(0,0,0,0.45)', 'rgba(0,0,0,0.65)']}
+            colors={['rgba(7, 6, 4, 0.72)', 'rgba(12, 10, 6, 0.88)', 'rgba(5, 4, 3, 0.95)']}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 0, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
 
-          {/* Gold border accent */}
-          <View style={styles.border} pointerEvents="none" />
+          {/* Elegant Gold Perimeter Border + Corner Brackets */}
+          <View style={s.goldBorder} pointerEvents="none" />
+          <View style={[s.corner, s.cornerTL]} pointerEvents="none" />
+          <View style={[s.corner, s.cornerTR]} pointerEvents="none" />
+          <View style={[s.corner, s.cornerBL]} pointerEvents="none" />
+          <View style={[s.corner, s.cornerBR]} pointerEvents="none" />
 
-          {/* Corner accents */}
-          <View style={[styles.corner, styles.cornerTL]} pointerEvents="none" />
-          <View style={[styles.corner, styles.cornerBR]} pointerEvents="none" />
-
-          <View style={styles.container}>
-            {/* Logo section — optimized for mobile */}
-            <View style={styles.logoSection}>
-              <Image
-                source={require('../../../assets/logo-uh.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
-
-            {/* Content section */}
-            <View style={styles.contentSection}>
-              <Text style={styles.mainTitle}>Deviens ta Version Ultime</Text>
-
-              <Text style={styles.mainDesc}>
-                Un protocole scientifique + suivi personnalisé. Transformation physique garantie.
-              </Text>
-
-              {/* Benefits list */}
-              <View style={styles.benefitsContainer}>
-                <View style={styles.benefitItem}>
-                  <Text style={styles.benefitBullet}>✦</Text>
-                  <Text style={styles.benefitText}>Guidé pas à pas</Text>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Text style={styles.benefitBullet}>✦</Text>
-                  <Text style={styles.benefitText}>Suivi personnalisé</Text>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Text style={styles.benefitBullet}>✦</Text>
-                  <Text style={styles.benefitText}>Progression mesurable</Text>
-                </View>
+          {/* Card Content Layout */}
+          <View style={s.content}>
+            {/* Top Row: Left Crest + Right Info */}
+            <View style={s.topRow}>
+              {/* Left UH Crest Logo */}
+              <View style={s.crestCol}>
+                <Image
+                  source={require('../../../assets/logo-uh.png')}
+                  style={s.crestImage}
+                  resizeMode="contain"
+                />
               </View>
 
-              {/* CTA Button */}
+              {/* Right Titles & Intro */}
+              <View style={s.infoCol}>
+                <Text style={s.subHeader}>The Ultimate Human : Path</Text>
+                <Text style={s.mainTitle}>FINI L'IMPROVISATION</Text>
+                <Text style={s.mainDesc}>
+                  Le 1er système alliant la science et le terrain pour une transformation physique mesurable et durable.
+                </Text>
+
+                {/* Concise Bullet Points List */}
+                <View style={s.benefitsList}>
+                  {BULLET_POINTS.map((text, idx) => (
+                    <View key={idx} style={s.benefitRow}>
+                      <Ionicons name="checkmark" size={15} color="#7FE024" style={s.checkIcon} />
+                      <Text style={s.benefitText}>{text}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* Bottom Luxury Gold CTA Button */}
+            <View style={s.ctaWrapper}>
               <LinearGradient
-                colors={['#f2d36f', '#d4af37', '#ba9125']}
+                colors={['#FFEAA0', '#E5C058', '#C6992E']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.cta}
+                style={s.ctaButton}
               >
-                <Text style={styles.ctaText}>DÉCOUVRIR</Text>
+                <Text style={s.ctaText}>DÉCOUVRIR UH</Text>
               </LinearGradient>
             </View>
           </View>
         </ImageBackground>
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+const serifFont = Platform.OS === 'ios' ? 'Georgia' : 'serif';
+
+const s = StyleSheet.create({
   wrapper: {
-    marginHorizontal: HORIZONTAL_MARGIN,
-    marginTop: 10,
-    marginBottom: 10,
-    borderRadius: BORDER_RADIUS,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 16,
+    borderRadius: 20,
     overflow: 'hidden',
-    width: BANNER_WIDTH,
-    alignSelf: 'center',
     shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.38,
     shadowRadius: 16,
-    elevation: 10,
+    elevation: 8,
+    backgroundColor: '#060504',
   },
-  bannerTouchable: {
-    borderRadius: BORDER_RADIUS,
+  pressable: {
+    borderRadius: 20,
     overflow: 'hidden',
   },
   surface: {
-    width: BANNER_WIDTH,
-    height: BANNER_HEIGHT,
-    borderRadius: BORDER_RADIUS,
-    backgroundColor: '#080604',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#060504',
   },
-  backgroundImage: {
-    borderRadius: BORDER_RADIUS,
+  bgImage: {
+    borderRadius: 20,
+    opacity: 0.45,
   },
-  border: {
+  goldBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: BORDER_RADIUS,
-    borderWidth: 1.5,
-    borderColor: 'rgba(212,175,55,0.45)',
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(212, 175, 55, 0.45)',
   },
   corner: {
     position: 'absolute',
-    width: 22,
-    height: 22,
-    borderColor: 'rgba(212,175,55,0.6)',
+    width: 14,
+    height: 14,
+    borderColor: '#F3C958',
   },
   cornerTL: {
-    top: 12,
-    left: 12,
-    borderTopWidth: 1.5,
-    borderLeftWidth: 1.5,
+    top: 6,
+    left: 6,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+  },
+  cornerTR: {
+    top: 6,
+    right: 6,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+  },
+  cornerBL: {
+    bottom: 6,
+    left: 6,
+    borderBottomWidth: 2,
+    borderLeftWidth: 2,
   },
   cornerBR: {
-    bottom: 12,
-    right: 12,
-    borderBottomWidth: 1.5,
-    borderRightWidth: 1.5,
+    bottom: 6,
+    right: 6,
+    borderBottomWidth: 2,
+    borderRightWidth: 2,
   },
-  container: {
-    flex: 1,
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 16,
+  },
+  topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: 14,
+    marginBottom: 14,
   },
-  logoSection: {
-    width: BANNER_WIDTH * 0.38,
-    height: '100%',
+  crestCol: {
+    width: 90,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 8,
   },
-  logo: {
-    width: '100%',
-    height: '100%',
-    maxWidth: BANNER_WIDTH * 0.38,
+  crestImage: {
+    width: 88,
+    height: 98,
   },
-  contentSection: {
+  infoCol: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  subHeader: {
+    color: '#EBD082',
+    fontFamily: serifFont,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+    fontStyle: 'italic',
   },
   mainTitle: {
-    color: '#F4DB8A',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 15.5,
     fontWeight: '900',
-    lineHeight: 20,
+    letterSpacing: 0.6,
     marginBottom: 6,
-    letterSpacing: -0.4,
+    textTransform: 'uppercase',
   },
   mainDesc: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(230, 230, 230, 0.85)',
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: '400',
+    marginBottom: 10,
+  },
+  benefitsList: {
+    gap: 6,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  checkIcon: {
+    marginTop: 1,
+  },
+  benefitText: {
+    color: 'rgba(245, 245, 245, 0.92)',
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 16,
-    marginBottom: 10,
   },
-  benefitsContainer: {
-    gap: 4,
-    marginBottom: 10,
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  benefitBullet: {
-    color: 'rgba(255,221,127,0.95)',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  benefitText: {
-    color: 'rgba(255,221,127,0.9)',
-    fontSize: 11,
-    fontWeight: '600',
-    lineHeight: 14,
-  },
-  cta: {
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+  ctaWrapper: {
+    width: '100%',
     shadowColor: '#D4AF37',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.42,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  ctaButton: {
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.42)',
   },
   ctaText: {
-    color: '#1a1200',
-    fontSize: 12,
+    color: '#080602',
+    fontSize: 13.5,
     fontWeight: '900',
-    letterSpacing: 0.3,
+    letterSpacing: 2,
+    textAlign: 'center',
   },
 });
+
+

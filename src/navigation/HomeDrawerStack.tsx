@@ -2,7 +2,8 @@
  * Drawer + Stack for the Home tab only.
  * Drawer (hamburger) is available only when this stack is mounted (Home tab active).
  */
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { DrawerOpenProvider } from './DrawerOpenContext';
@@ -31,10 +32,10 @@ const Stack = createStackNavigator<HomeDrawerParamList>();
 function withStackRef<P extends object>(Component: React.ComponentType<P>, routeName: keyof HomeDrawerParamList) {
   return function Wrapped(props: P & { navigation?: any; route?: any }) {
     const { setNavigation, setCurrentRouteName } = useStackRef();
-    useEffect(() => {
+    useFocusEffect(useCallback(() => {
       if (props.navigation) setNavigation(props.navigation);
       setCurrentRouteName(routeName as string);
-    }, [props.navigation, setNavigation, setCurrentRouteName]);
+    }, [props.navigation, setNavigation, setCurrentRouteName]));
     return <Component {...(props as P)} />;
   };
 }

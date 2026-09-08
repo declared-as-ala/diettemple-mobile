@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   dotActive: {
-    backgroundColor: '#D4AF37', // colors.primary
+    backgroundColor: BRAND_YELLOW, // colors.primary
     width: 24,
   },
   dotInactive: {

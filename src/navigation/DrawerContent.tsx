@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Premium drawer content: header (avatar, name, subscription badge), menu items, logout.
  * Black + green theme; active route highlight.
@@ -14,7 +15,7 @@ import { resolveMediaUrl } from '../config/api.config';
 import { useSubscription } from '../context/SubscriptionContext';
 import { rootNavigationRef } from './rootNavigationRef';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 export default function CustomDrawerContent(props: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();

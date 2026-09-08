@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import {
   View,
@@ -8,7 +9,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 
 interface ShopHeroBannerProps {
   onPress: () => void;

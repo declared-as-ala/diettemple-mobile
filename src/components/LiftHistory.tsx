@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React from 'react';
 import {
   View,
@@ -51,7 +52,7 @@ export default function LiftHistory({
           style={[styles.prContainer, { borderColor: colors.border }]}
         >
           <View style={styles.prHeader}>
-            <Ionicons name="trophy" size={24} color="#D4AF37" />
+            <Ionicons name="trophy" size={24} color={BRAND_YELLOW} />
             <Text style={styles.prLabel}>PERSONAL RECORD</Text>
           </View>
 
@@ -107,7 +108,7 @@ export default function LiftHistory({
                   <Ionicons name="close-circle" size={18} color="rgba(255,100,100,0.7)" />
                 </TouchableOpacity>
 
-                <Text style={[styles.historyWeight, { color: '#D4AF37' }]}>
+                <Text style={[styles.historyWeight, { color: BRAND_YELLOW }]}>
                   {lift.weight} kg
                 </Text>
 
@@ -129,7 +130,7 @@ export default function LiftHistory({
 
       {/* Add Lift Button */}
       <TouchableOpacity
-        style={[styles.addBtn, { backgroundColor: '#D4AF37' }]}
+        style={[styles.addBtn, { backgroundColor: BRAND_YELLOW }]}
         onPress={onAddLift}
       >
         <Ionicons name="add" size={24} color="#1a1200" />
@@ -159,13 +160,13 @@ const styles = StyleSheet.create({
   prLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     letterSpacing: 0.5,
   },
   prWeight: {
     fontSize: 36,
     fontWeight: '900',
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     marginBottom: 12,
     letterSpacing: -1,
   },
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     gap: 8,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

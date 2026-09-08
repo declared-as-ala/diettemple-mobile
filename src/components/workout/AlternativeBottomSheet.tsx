@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import {
   View,
@@ -17,6 +18,7 @@ export interface AlternativeOption {
   muscleGroup?: string;
   equipment?: string;
   videoUrl?: string;
+  isPrimary?: boolean;
 }
 
 interface AlternativeBottomSheetProps {
@@ -27,11 +29,11 @@ interface AlternativeBottomSheetProps {
   onClose: () => void;
 }
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 export default function AlternativeBottomSheet({
   visible,
-  title = 'Use instead',
+  title = 'Remplacer par',
   alternatives,
   onSelect,
   onClose,
@@ -56,7 +58,7 @@ export default function AlternativeBottomSheet({
           </Text>
           <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {alternatives.length === 0 ? (
-              <Text style={[styles.empty, { color: colors.textSecondary }]}>Aucune alternative</Text>
+              <Text style={[styles.empty, { color: colors.textSecondary }]}>Aucune alternative disponible</Text>
             ) : (
               alternatives.map((alt) => (
                 <TouchableOpacity
@@ -70,7 +72,14 @@ export default function AlternativeBottomSheet({
                 >
                   <Ionicons name="barbell-outline" size={22} color={ACCENT} />
                   <View style={styles.rowText}>
-                    <Text style={[styles.rowName, { color: colors.text }]}>{alt.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.rowName, { color: colors.text }]}>{alt.name}</Text>
+                      {alt.isPrimary && (
+                        <View style={styles.primaryBadge}>
+                          <Text style={styles.primaryBadgeText}>Principal</Text>
+                        </View>
+                      )}
+                    </View>
                     {(alt.equipment || alt.muscleGroup) && (
                       <Text style={[styles.rowMeta, { color: colors.textSecondary }]}>
                         {[alt.equipment, alt.muscleGroup].filter(Boolean).join(' · ')}
@@ -83,7 +92,7 @@ export default function AlternativeBottomSheet({
             )}
           </ScrollView>
           <TouchableOpacity style={[styles.cancel, { borderColor: colors.border }]} onPress={onClose}>
-            <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
+            <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Annuler</Text>
           </TouchableOpacity>
         </View>
       </Pressable>
@@ -163,5 +172,19 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  primaryBadge: {
+    backgroundColor: 'rgba(212, 175, 55, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  primaryBadgeText: {
+    color: BRAND_YELLOW,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

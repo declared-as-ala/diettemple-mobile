@@ -1,7 +1,8 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 
 export interface DateOption {
   key: string;
@@ -25,6 +26,9 @@ export function DateSegmentChips({ options, selectedKey, onSelect }: DateSegment
             style={[styles.chip, active && styles.chipActive]}
             onPress={() => onSelect(opt.key)}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={opt.label}
+            accessibilityState={{ selected: active }}
           >
             <Text style={[styles.chipText, active && styles.chipTextActive]}>
               {opt.label}
@@ -39,10 +43,13 @@ export function DateSegmentChips({ options, selectedKey, onSelect }: DateSegment
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
   },
   chip: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
@@ -57,7 +64,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    color: '#B5C3A7',
   },
   chipTextActive: {
     color: GOLD,

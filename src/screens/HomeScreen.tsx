@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -295,17 +296,13 @@ export default function HomeScreen() {
   // Handle photo upload
   const handleAddPhoto = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Permission nécessaire pour accéder à la galerie');
-        return;
-      }
-
+      // System Photo Picker via launchImageLibraryAsync needs no permission request.
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [3, 4],
         quality: 0.8,
+        legacy: false,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -397,7 +394,7 @@ export default function HomeScreen() {
         <View style={styles.centerContainer}>
           <Text style={[styles.loginMessage, { color: colors.text }]}>Vous devez être connecté pour accéder à cette page</Text>
           <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: (colors as any).primary || '#D4AF37' }]}
+            style={[styles.loginButton, { backgroundColor: (colors as any).primary || BRAND_YELLOW }]}
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.loginButtonText}>Se connecter</Text>
@@ -421,7 +418,7 @@ export default function HomeScreen() {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D4AF37" colors={['#D4AF37']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND_YELLOW} colors={[BRAND_YELLOW]} />}
         showsVerticalScrollIndicator={false}
       >
         {/* ─── Premium Header ─────────────────────────────────────────── */}
@@ -442,7 +439,7 @@ export default function HomeScreen() {
                 ) : (
                   <View style={styles.avatarRing}>
                     <View style={[styles.profilePlaceholder, { backgroundColor: colors.cardBackground }]}>
-                      <Ionicons name="person" size={22} color="#D4AF37" />
+                      <Ionicons name="person" size={22} color={BRAND_YELLOW} />
                     </View>
                   </View>
                 )}
@@ -459,7 +456,7 @@ export default function HomeScreen() {
                     onPress={() => setShowLevelModal(true)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="trophy" size={10} color="#D4AF37" />
+                    <Ionicons name="trophy" size={10} color={BRAND_YELLOW} />
                     <Text style={styles.levelPillText}>{user.level}</Text>
                   </TouchableOpacity>
                 )}
@@ -522,7 +519,7 @@ export default function HomeScreen() {
                 >
                   {isSelected ? (
                     <LinearGradient
-                      colors={['#D4AF37', '#B8942E']}
+                      colors={[BRAND_YELLOW, '#B8942E']}
                       style={styles.dateBoxSelected}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -541,7 +538,7 @@ export default function HomeScreen() {
                       <Text style={[styles.dayName, { color: colors.textSecondary }]}>
                         {getDayName(date)}
                       </Text>
-                      <Text style={[styles.dayNumber, { color: isTodayDate ? '#D4AF37' : colors.text }]}>
+                      <Text style={[styles.dayNumber, { color: isTodayDate ? BRAND_YELLOW : colors.text }]}>
                         {date.getDate()}
                       </Text>
                       {isTodayDate && <View style={styles.todayDot} />}
@@ -704,7 +701,7 @@ export default function HomeScreen() {
                     >
                       <View style={styles.sessionCardHeader}>
                         <View style={styles.sessionCardLeft}>
-                          <Ionicons name={isCompleted ? 'checkmark-circle' : 'fitness-outline'} size={24} color="#D4AF37" />
+                          <Ionicons name={isCompleted ? 'checkmark-circle' : 'fitness-outline'} size={24} color={BRAND_YELLOW} />
                           <View style={styles.sessionCardInfo}>
                             <Text style={[styles.sessionCardTitle, { color: colors.text }]}>{dailyProgram.session?.title || 'Ma Séance'}</Text>
                             {dailyProgram.session?.duration && (
@@ -728,7 +725,7 @@ export default function HomeScreen() {
                       )}
 
                       <TouchableOpacity
-                        style={[styles.sessionCardButton, { backgroundColor: isCompleted ? '#666666' : '#D4AF37' }]}
+                        style={[styles.sessionCardButton, { backgroundColor: isCompleted ? '#666666' : BRAND_YELLOW }]}
                         onPress={() => handleSessionPress()}
                         activeOpacity={0.8}
                       >
@@ -832,19 +829,19 @@ export default function HomeScreen() {
                   const levelColors: Record<string, string> = {
                     Intiate: '#CD7F32',
                     Fighter: '#C0C0C0',
-                    Warrior: '#FFD700',
-                    Champion: '#FFD700',
+                    Warrior: BRAND_YELLOW,
+                    Champion: BRAND_YELLOW,
                     Elite: '#E8E8E8',
                   };
 
                   return (
                     <View key={level} style={styles.levelItem}>
-                      {index > 0 && <View style={[styles.levelConnector, { backgroundColor: isCompleted ? '#D4AF37' : '#333333' }]} />}
+                      {index > 0 && <View style={[styles.levelConnector, { backgroundColor: isCompleted ? BRAND_YELLOW : '#333333' }]} />}
                       <View style={styles.levelPedestal}>
                         <View
                           style={[
                             styles.levelBadgeContainer,
-                            { borderColor: isCurrent ? '#D4AF37' : isCompleted ? levelColors[levelKey] : '#333333' },
+                            { borderColor: isCurrent ? BRAND_YELLOW : isCompleted ? levelColors[levelKey] : '#333333' },
                             isCurrent && styles.levelBadgeCurrent,
                             isCompleted && styles.levelBadgeCompleted,
                           ]}
@@ -856,17 +853,17 @@ export default function HomeScreen() {
                           <Text
                             style={[
                               styles.levelBadgeLabelText,
-                              { color: isCurrent ? '#D4AF37' : isCompleted ? levelColors[levelKey] : colors.textSecondary },
+                              { color: isCurrent ? BRAND_YELLOW : isCompleted ? levelColors[levelKey] : colors.textSecondary },
                             ]}
                           >
                             UH {level.toUpperCase()}
                           </Text>
-                          {isCurrent && <Text style={[styles.currentLevelText, { color: '#D4AF37' }]}>(Actuel)</Text>}
+                          {isCurrent && <Text style={[styles.currentLevelText, { color: BRAND_YELLOW }]}>(Actuel)</Text>}
                         </View>
 
                         {isCompleted && (
                           <View style={styles.checkmarkContainer}>
-                            <Ionicons name="checkmark-circle" size={20} color="#D4AF37" />
+                            <Ionicons name="checkmark-circle" size={20} color={BRAND_YELLOW} />
                           </View>
                         )}
                       </View>
@@ -878,13 +875,13 @@ export default function HomeScreen() {
               {currentProgram && (
                 <View style={[styles.programPeriodCard, { backgroundColor: colors.cardBackground }]}>
                   <View style={styles.programPeriodHeader}>
-                    <Ionicons name="calendar" size={24} color="#D4AF37" />
+                    <Ionicons name="calendar" size={24} color={BRAND_YELLOW} />
                     <Text style={[styles.programPeriodTitle, { color: colors.text }]}>Programme {currentProgram.lengthWeeks} semaines</Text>
                   </View>
 
                   <View style={styles.programProgressContainer}>
                     <View style={[styles.programProgressBar, { backgroundColor: colors.cardBackground }]}>
-                      <View style={[styles.programProgressFill, { width: `${currentProgram.progressPercentage}%`, backgroundColor: '#D4AF37' }]} />
+                      <View style={[styles.programProgressFill, { width: `${currentProgram.progressPercentage}%`, backgroundColor: BRAND_YELLOW }]} />
                     </View>
                     <Text style={[styles.programProgressText, { color: colors.text }]}>{currentProgram.progressPercentage}%</Text>
                   </View>
@@ -1029,7 +1026,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 2,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1059,7 +1056,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 4,
   },
-  levelPillText: { fontSize: 11, fontWeight: '700', color: '#D4AF37' },
+  levelPillText: { fontSize: 11, fontWeight: '700', color: BRAND_YELLOW },
   programName: { fontSize: 12, marginTop: 2 },
 
   // Header right icons
@@ -1075,8 +1072,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBtnCart: {
-    backgroundColor: '#D4AF37',
-    borderColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
+    borderColor: BRAND_YELLOW,
   },
   // legacy alias
   iconButton: { padding: 8 },
@@ -1098,7 +1095,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  weekBadgeText: { fontSize: 12, fontWeight: '700', color: '#D4AF37' },
+  weekBadgeText: { fontSize: 12, fontWeight: '700', color: BRAND_YELLOW },
 
   calendarContainer: { flexDirection: 'row', gap: 10 },
   dateBoxWrap: {},
@@ -1123,7 +1120,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 8,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -1133,7 +1130,7 @@ const styles = StyleSheet.create({
   dayNameSelected: { fontSize: 11, fontWeight: '700', color: '#000', marginBottom: 4 },
   dayNumber: { fontSize: 18, fontWeight: '800' },
   dayNumberSelected: { fontSize: 18, fontWeight: '900', color: '#000' },
-  todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#D4AF37', position: 'absolute', bottom: 7 },
+  todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: BRAND_YELLOW, position: 'absolute', bottom: 7 },
 
   section: { paddingHorizontal: 20, marginTop: 24 },
   sectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
@@ -1180,7 +1177,7 @@ const styles = StyleSheet.create({
   sessionCardInfo: { flex: 1 },
   sessionCardTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
   sessionCardDuration: { fontSize: 14 },
-  completedBadge: { backgroundColor: '#D4AF37', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  completedBadge: { backgroundColor: BRAND_YELLOW, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   completedBadgeText: { color: '#000000', fontSize: 12, fontWeight: '700' },
   sessionCardExercises: { marginBottom: 16 },
   sessionCardExercisesText: { fontSize: 14 },
@@ -1213,7 +1210,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 16, textAlign: 'center' },
 
   levelButton: { marginRight: 8 },
-  levelBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#D4AF37' },
+  levelBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: BRAND_YELLOW },
   levelBadgeText: { fontSize: 12, fontWeight: '700' },
 
   programCard: { padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#333333' },
@@ -1240,11 +1237,11 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     padding: 4,
   },
-  levelBadgeCompleted: { borderColor: '#D4AF37' },
+  levelBadgeCompleted: { borderColor: BRAND_YELLOW },
   levelBadgeCurrent: {
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
     borderWidth: 4,
-    shadowColor: '#D4AF37',
+    shadowColor: BRAND_YELLOW,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 8,

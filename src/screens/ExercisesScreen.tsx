@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Lists all exercises from admin (GET /api/home/exercises) with filters:
  * muscle group, equipment, difficulty, search, has video.
@@ -22,7 +23,7 @@ import { useExerciseFavoritesStore } from '../store/exerciseFavoritesStore';
 import { useSnackbar } from '../components/Snackbar';
 import DrawerScreenContainer from '../components/DrawerScreenContainer';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 function ExerciseSkeletonCard({ colors }: { colors: any }) {
   return (

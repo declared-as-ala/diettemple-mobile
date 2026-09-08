@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Zero-UI bridge: load session, sync gym status, then go straight to SessionReels
  * or GymVerification (no "aperçu" screen).
@@ -16,7 +17,7 @@ import { buildReelsSessionFromApiSession } from '../utils/buildReelsSessionFromA
 import AppBackground from '../components/AppBackground';
 import AppLoader from '../components/AppLoader';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 type Route = RouteProp<RootStackParamList, 'SessionQuickStart'>;
 type Nav = StackNavigationProp<RootStackParamList, 'SessionQuickStart'>;

@@ -2,7 +2,8 @@
  * Stack-based "drawer" with custom slide-in panel.
  * Screens: Main (tabs), Exercises, Recipes, WeekPlan, Gallery, DayGalleryDetails.
  */
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { DrawerOpenProvider } from './DrawerOpenContext';
@@ -30,10 +31,10 @@ const Stack = createStackNavigator<PremiumDrawerParamList>();
 function withStackRef<P extends object>(Component: React.ComponentType<P>, routeName: string) {
   return function Wrapped(props: P & { navigation?: any; route?: any }) {
     const { setNavigation, setCurrentRouteName } = useStackRef();
-    useEffect(() => {
+    useFocusEffect(useCallback(() => {
       if (props.navigation) setNavigation(props.navigation);
       setCurrentRouteName(routeName);
-    }, [props.navigation, setNavigation, setCurrentRouteName]);
+    }, [props.navigation, setNavigation, setCurrentRouteName]));
     return <Component {...(props as P)} />;
   };
 }

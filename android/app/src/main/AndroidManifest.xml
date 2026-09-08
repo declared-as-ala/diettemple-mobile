@@ -4,10 +4,24 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <!--
+    DietTemple only lets users pick a meal photo via the Android system Photo Picker
+    (expo-image-picker launchImageLibraryAsync, legacy: false) or take a new photo with
+    the camera — it never needs broad photo/video library access. These entries actively
+    strip the legacy storage permissions (still present in this pre-existing manifest) and
+    the scoped-media permissions that expo-screen-capture's own library manifest injects
+    during Gradle's manifest merge, so the FINAL merged/release manifest never declares them.
+    Google Play rejected the app on 2026-07-30 for requesting READ_MEDIA_IMAGES/READ_MEDIA_VIDEO;
+    do not remove these tools:node="remove" entries without re-verifying the merged manifest
+    (see verify-manifest-permissions script) and the Play Console review.
+  -->
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" tools:node="remove"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>

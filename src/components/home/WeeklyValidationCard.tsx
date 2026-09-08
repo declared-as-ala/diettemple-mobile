@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scoreValue: { fontSize: 24, color: '#D4AF37', fontWeight: '900', lineHeight: 26 },
+  scoreValue: { fontSize: 24, color: BRAND_YELLOW, fontWeight: '900', lineHeight: 26 },
   scoreTotal: { fontSize: 11, color: '#A3A3A3', fontWeight: '700' },
   todayBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 12, borderWidth: 1 },
   todayBadgeOk: { backgroundColor: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.35)' },
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   dayChip: { flex: 1, minWidth: 0, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.03)', alignItems: 'center', paddingVertical: 7 },
   dayChipOk: { borderColor: 'rgba(34,197,94,0.35)', backgroundColor: 'rgba(34,197,94,0.08)' },
-  dayChipToday: { borderColor: '#D4AF37', borderWidth: 1.6 },
+  dayChipToday: { borderColor: BRAND_YELLOW, borderWidth: 1.6 },
   dayLabel: { fontSize: 10, color: '#9CA3AF', marginBottom: 2, fontWeight: '700' },
   dayLabelOk: { color: '#86EFAC' },
   hint: { fontSize: 12, color: '#9CA3AF', lineHeight: 17 },

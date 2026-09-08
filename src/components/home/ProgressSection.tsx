@@ -1,9 +1,10 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 interface ProgressSectionProps {
   streaks?: { workout: number; nutrition: number };

@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -19,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/Button';
+import { useSnackbar } from '../components/Snackbar';
 import AppBackground from '../components/AppBackground';
 import DrawerScreenContainer from '../components/DrawerScreenContainer';
 import { NutritionHeader } from '../components/nutrition/NutritionHeader';
@@ -36,7 +38,7 @@ import { getLocalDateKey, addDays, formatShortDateFr } from '../utils/date';
 import type { Recipe, RootStackParamList } from '../types';
 
 type NavProp = StackNavigationProp<RootStackParamList, 'Recettes'>;
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const PORTIONS = [0.5, 1, 1.5, 2] as const;
 type Portion = typeof PORTIONS[number];
 
@@ -185,13 +187,13 @@ const RecipeRow = memo(function RecipeRow({
         <View style={styles.kcalPill}>
           <Text style={styles.kcalPillText}>{recipe.calories ?? 0} kcal</Text>
         </View>
-        <TouchableOpacity onPress={() => onUnfavorite(recipe._id)} hitSlop={8}>
+        <TouchableOpacity onPress={(event) => { event.stopPropagation(); onUnfavorite(recipe._id); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Retirer ${recipe.title} des favoris`}>
           <Ionicons name="heart" size={18} color={GOLD} />
         </TouchableOpacity>
       </View>
       <View style={styles.recipeBottom}>
         <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => onAdd(recipe)} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.addBtn} onPress={(event) => { event.stopPropagation(); onAdd(recipe); }} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Ajouter ${recipe.title} au journal`}>
           <Ionicons name="add" size={15} color="#111" />
           <Text style={styles.addBtnText}>Ajouter</Text>
         </TouchableOpacity>
@@ -201,6 +203,8 @@ const RecipeRow = memo(function RecipeRow({
 });
 
 export default function NutritionScreen() {
+  const { showSnackbar } = useSnackbar();
+  const addingRef = useRef(false);
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
   const { token } = useAuthStore();
@@ -212,6 +216,7 @@ export default function NutritionScreen() {
   const [nutrition, setNutrition] = useState<NutritionTodayResponse | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [addModalRecipe, setAddModalRecipe] = useState<Recipe | null>(null);
   const [adding, setAdding] = useState(false);
@@ -230,6 +235,7 @@ export default function NutritionScreen() {
       ]);
       if (controller.signal.aborted) return;
       setNutrition(nutRes ?? null);
+      setLoadError(!nutRes);
       setRecipes(recipesRes?.recipes ?? []);
       if (nutRes) {
         useNutritionStore.getState().setNutritionForDate(dateKey, {
@@ -241,6 +247,7 @@ export default function NutritionScreen() {
     } catch (err: any) {
       if (err?.name === 'AbortError' || controller.signal.aborted) return;
       setNutrition(null);
+      setLoadError(true);
       setRecipes([]);
     } finally {
       if (!controller.signal.aborted) {
@@ -250,15 +257,10 @@ export default function NutritionScreen() {
     }
   }, [token, fetchFavorites]);
 
-  useEffect(() => {
-    if (!token) return;
-    setLoading(true);
-    loadData(selectedDateKey);
-  }, [token, selectedDateKey, loadData]);
-
   useFocusEffect(
     useCallback(() => {
-      if (token) loadData(selectedDateKey);
+      if (token) { setLoading(true); loadData(selectedDateKey); }
+      return () => abortRef.current?.abort();
     }, [token, loadData, selectedDateKey])
   );
 
@@ -268,6 +270,8 @@ export default function NutritionScreen() {
   }, [loadData, selectedDateKey]);
 
   const handleAddToJournal = useCallback(async (recipe: Recipe, portion: Portion) => {
+    if (addingRef.current) return;
+    addingRef.current = true;
     setAdding(true);
     try {
       await meService.postNutritionLogEntry(selectedDateKey, {
@@ -285,20 +289,23 @@ export default function NutritionScreen() {
       setTimeout(() => setAddSuccess(null), 2300);
       useNutritionStore.getState().invalidateDate(selectedDateKey);
       loadData(selectedDateKey);
+    } catch {
+      showSnackbar({ message: 'Impossible d’ajouter ce repas. Réessayez.' });
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
-  }, [selectedDateKey, loadData]);
+  }, [selectedDateKey, loadData, showSnackbar]);
 
   const safeRecipes = recipes ?? [];
   const targets: NutritionTargets | null = nutrition?.targets ?? null;
   const log = nutrition?.log ?? null;
   const consumedCal = log?.consumedCalories ?? 0;
   const consumedMacros = log?.consumedMacros ?? { proteinG: 0, carbsG: 0, fatG: 0 };
-  const targetCal = targets?.dailyCalories ?? 2200;
-  const targetProtein = targets?.proteinG ?? 150;
-  const targetCarbs = targets?.carbsG ?? 200;
-  const targetFat = targets?.fatG ?? 65;
+  const targetCal = targets?.dailyCalories ?? 0;
+  const targetProtein = targets?.proteinG ?? 0;
+  const targetCarbs = targets?.carbsG ?? 0;
+  const targetFat = targets?.fatG ?? 0;
 
   const favoriteRecipes = useMemo(
     () => safeRecipes.filter((r) => (favoriteIds ?? []).includes(r._id)),
@@ -331,6 +338,8 @@ export default function NutritionScreen() {
 
   const renderItem: ListRenderItem<NutritionItem> = useCallback(({ item, index }) => {
     if (item.type === 'progress') {
+      if (loading) return <View style={{ minHeight: 230, borderRadius: 24, backgroundColor: '#202A18', justifyContent: 'center', alignItems: 'center', gap: 12 }}><ActivityIndicator color={GOLD} /><Text style={{ color: '#B7C5A8' }}>Chargement de votre bilan…</Text></View>;
+      if (loadError) return <EmptyState title="Bilan indisponible" subtitle="Vos données n’ont pas pu être chargées." ctaLabel="Réessayer" onPress={onRefresh} />;
       return (
         <AnimatedSection delay={index * 70}>
           <ProgressCard
@@ -401,6 +410,7 @@ export default function NutritionScreen() {
       </AnimatedSection>
     );
   }, [
+    loading, loadError, onRefresh,
     consumedCal,
     targetCal,
     consumedMacros,
@@ -417,21 +427,21 @@ export default function NutritionScreen() {
 
   if (!token) {
     return (
-      <AppBackground>
+      <View style={{ flex: 1, backgroundColor: '#10170D' }}>
         <StatusBar style="light" />
         <View style={styles.centered}>
           <Text style={styles.loginMessage}>Vous devez être connecté</Text>
           <Button title="Se connecter" onPress={() => navigation.navigate('Login' as never)} />
         </View>
-      </AppBackground>
+      </View>
     );
   }
 
   return (
-    <AppBackground>
+    <View style={{ flex: 1, backgroundColor: '#10170D' }}>
       <DrawerScreenContainer
         title="Nutrition"
-        backgroundColor="transparent"
+        backgroundColor="#10170D"
         titleColor={nutritionColors.text}
         headerBorderColor="rgba(255,255,255,0.08)"
         leftAction={isDrawerAvailable ? undefined : <View style={{ width: 44, height: 44 }} />}
@@ -466,18 +476,19 @@ export default function NutritionScreen() {
           initialNumToRender={3}
           maxToRenderPerBatch={5}
           windowSize={7}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           extraData={{ loading, selectedDateKey, favoriteCount: favoriteRecipes.length }}
         />
 
         <AddToJournalModal
+          key={addModalRecipe?._id || 'none'}
           recipe={addModalRecipe}
           adding={adding}
           onClose={() => setAddModalRecipe(null)}
           onConfirm={handleAddToJournal}
         />
       </DrawerScreenContainer>
-    </AppBackground>
+    </View>
   );
 }
 
@@ -620,8 +631,8 @@ const modal = StyleSheet.create({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     gap: 14,
   },
   centered: {
@@ -642,7 +653,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.3,
     textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.36)',
+    color: '#B7C5A8',
     fontWeight: '700',
   },
   rowBetween: {

@@ -233,6 +233,7 @@ export const workoutService = {
     } | null;
     history: {
       lastWeight: number;
+      personalRecord?: number;
       lastReps: number[];
       lastSets: Array<{
         setNumber: number;

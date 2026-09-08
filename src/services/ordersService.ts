@@ -11,7 +11,7 @@ export interface OrderItem {
 export interface DeliveryAddress {
   fullName?: string;
   street: string;
-  city: string;
+  city?: string;
   delegation?: string;
   phone?: string;
   email?: string;

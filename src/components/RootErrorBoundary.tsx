@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuthStore } from '../store/authStore';
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,

@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Compare two progress photos: pre-selected from GalleryScreen or chosen manually.
  * Auto-generates the composite immediately when both dates arrive from route params.
@@ -31,7 +32,7 @@ import type { GalleryDayEntry } from '../services/galleryStorage';
 type NavProp = StackNavigationProp<HomeDrawerParamList, 'GalleryCompare'>;
 type RoutePropType = RouteProp<HomeDrawerParamList, 'GalleryCompare'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COMPOSITE_WIDTH = SCREEN_WIDTH - 32;
 const COMPOSITE_ASPECT = 4 / 5;

@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -61,8 +62,8 @@ export default function FoodScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#D4AF37"
-            colors={['#D4AF37']}
+            tintColor={BRAND_YELLOW}
+            colors={[BRAND_YELLOW]}
           />
         }
       >

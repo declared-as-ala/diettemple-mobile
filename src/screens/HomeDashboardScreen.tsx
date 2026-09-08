@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useCallback, useEffect,useMemo,
    useRef } from 'react';
 import {
@@ -47,7 +48,7 @@ import { resolveVideoUrl } from '../config/api.config';
 const SAFE_STARTUP_DEFER_MS = 500;
 const SUB_STATUS_KEY = 'diettemple_sub_status';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const SURFACE = '#131313';
 const SURFACE_2 = '#1C1C1C';
 
@@ -654,6 +655,8 @@ export default function HomeDashboardScreen() {
           {/* Menu button */}
           <TouchableOpacity
             style={styles.menuBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir le menu"
             onPress={openDrawer}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
@@ -1760,7 +1763,7 @@ const styles = StyleSheet.create({
   weekNavPlanWeek: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     marginTop: 2,
   },
   weekNavBottomRow: {
@@ -1770,7 +1773,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   todayPill: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,

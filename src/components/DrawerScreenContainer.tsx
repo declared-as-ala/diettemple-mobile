@@ -44,6 +44,8 @@ function DefaultLeftAction() {
   const { colors } = useTheme();
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel="Ouvrir le menu"
       style={[styles.menuBtn, { backgroundColor: colors.cardBackground }]}
       onPress={openDrawer}
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}

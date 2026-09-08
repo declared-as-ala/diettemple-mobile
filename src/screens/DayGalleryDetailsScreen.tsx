@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Day Gallery Details: Before/After slots, add/replace/crop/delete, notes, save.
  */
@@ -28,7 +29,7 @@ import { TAB_BAR_OVERLAY_PADDING } from '../navigation/tabBarMetrics';
 type Route = RouteProp<HomeDrawerParamList, 'DayGalleryDetails'>;
 type NavProp = StackNavigationProp<HomeDrawerParamList, 'DayGalleryDetails'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 function formatDateTitle(dateKey: string): string {
   const [y, m, d] = dateKey.split('-').map(Number);
@@ -62,15 +63,12 @@ export default function DayGalleryDetailsScreen() {
   }, [load]);
 
   const pickImage = useCallback(async (slot: 'before' | 'after') => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Autorisez l\'accès aux photos pour ajouter des photos de progression.');
-      return;
-    }
+    // System Photo Picker via launchImageLibraryAsync needs no permission request.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
       quality: 1,
+      legacy: false,
     });
     if (result.canceled || !result.assets?.[0]?.uri) return;
     const uri = result.assets[0].uri;

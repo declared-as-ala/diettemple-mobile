@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   exerciseName: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 24,
@@ -245,16 +246,16 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
   },
   recommendationText: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },
   completeButton: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     borderRadius: 16,
     padding: 18,
     flexDirection: 'row',

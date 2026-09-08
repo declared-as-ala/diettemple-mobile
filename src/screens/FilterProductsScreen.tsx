@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import {
   View,
@@ -169,7 +170,7 @@ export default function FilterProductsScreen() {
       {/* Apply Button */}
       <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <TouchableOpacity
-          style={[styles.applyButton, { backgroundColor: '#D4AF37' }]}
+          style={[styles.applyButton, { backgroundColor: BRAND_YELLOW }]}
           onPress={handleApply}
         >
           <Text style={styles.applyButtonText}>Appliquer</Text>

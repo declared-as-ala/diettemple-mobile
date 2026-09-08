@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import {
   View,
@@ -12,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { nutritionColors } from '../../constants/nutritionColors';
 import type { Recipe } from '../../types';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(260, SCREEN_WIDTH * 0.68);
 

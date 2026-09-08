@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useRef, useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000', // colors.background
   },
   inputFilled: {
-    borderColor: '#D4AF37', // colors.primary
+    borderColor: BRAND_YELLOW, // colors.primary
     backgroundColor: '#000000', // colors.background
   },
 });

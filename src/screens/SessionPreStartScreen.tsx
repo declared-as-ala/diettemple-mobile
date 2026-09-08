@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -25,7 +26,7 @@ import AppBackground from '../components/AppBackground';
 type Route = RouteProp<RootStackParamList, 'SessionPreStart'>;
 type Nav = StackNavigationProp<RootStackParamList, 'SessionPreStart'>;
 
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 const ACCENT_DIM = 'rgba(212,175,55,0.15)';
 
 export default function SessionPreStartScreen() {

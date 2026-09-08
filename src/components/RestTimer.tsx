@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -100,7 +101,7 @@ export default function RestTimer({ visible, seconds, onComplete, onSkip, redBel
             styles.timerCircle,
             {
               transform: [{ scale: pulseAnim }],
-              borderColor: isRed ? '#EF4444' : '#D4AF37',
+              borderColor: isRed ? '#EF4444' : BRAND_YELLOW,
             },
           ]}
         >
@@ -142,7 +143,7 @@ export default function RestTimer({ visible, seconds, onComplete, onSkip, redBel
             activeOpacity={0.8}
           >
             <Text style={styles.skipButtonText}>Passer</Text>
-            <Ionicons name="arrow-forward" size={20} color="#D4AF37" />
+            <Ionicons name="arrow-forward" size={20} color={BRAND_YELLOW} />
           </TouchableOpacity>
         </View>
       </View>
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
     marginBottom: 24,
     overflow: 'hidden',
   },
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 255, 0, 0.3)',
   },
   timerText: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 48,
     fontWeight: '700',
     zIndex: 1,
@@ -209,11 +210,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
     borderRadius: 10,
   },
   add15ButtonText: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   skipButtonText: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 16,
     fontWeight: '600',
   },

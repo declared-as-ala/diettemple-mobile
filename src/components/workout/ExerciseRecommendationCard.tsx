@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +14,7 @@ interface Props {
 function badgeMeta(decision?: ExerciseRecommendation['decision']) {
   if (decision === 'ADVANCE') return { label: 'Augmenter', color: '#22C55E', icon: 'trending-up' as const };
   if (decision === 'DOWN') return { label: 'Reduire', color: '#EF4444', icon: 'trending-down' as const };
-  return { label: 'Garder', color: '#D4AF37', icon: 'remove' as const };
+  return { label: 'Garder', color: BRAND_YELLOW, icon: 'remove' as const };
 }
 
 export default function ExerciseRecommendationCard({ loading, error, recommendation }: Props) {
@@ -87,7 +88,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '700' },
   metric: { color: '#E5E7EB', fontSize: 13, marginBottom: 6 },
   label: { color: '#9CA3AF', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 },
-  recommended: { color: '#D4AF37', fontSize: 24, fontWeight: '800', marginTop: 2, marginBottom: 4 },
+  recommended: { color: BRAND_YELLOW, fontSize: 24, fontWeight: '800', marginTop: 2, marginBottom: 4 },
   reason: { color: '#F3F4F6', fontSize: 12, lineHeight: 17 },
   emptyText: { color: '#D1D5DB', fontSize: 12, lineHeight: 17 },
   setsRow: { flexDirection: 'row', gap: 8, marginTop: 10 },

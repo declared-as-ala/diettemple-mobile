@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,6 +9,7 @@ import {
   Image,
   Alert,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AppBackground from '../components/AppBackground';
@@ -39,7 +41,7 @@ type ProfileScreenNavigationProp = CompositeNavigationProp<
   StackNavigationProp<RootStackParamList>
 >;
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const SURFACE = '#131313';
 const SURFACE_2 = '#1C1C1C';
 
@@ -161,18 +163,15 @@ export default function ProfileScreen() {
   const handlePickImage = async () => {
     if (!useAuthStore.getState().token) return;
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission requise', 'Accès aux photos nécessaire.');
-        return;
-      }
+      // System Photo Picker via launchImageLibraryAsync needs no permission request.
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.5,
         base64: true,
         allowsMultipleSelection: false,
+        legacy: false,
       });
       if (!result.canceled && result.assets[0]?.base64) {
         setUpdatingPhoto(true);
@@ -382,6 +381,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionLabel}>SUPPORT</Text>
           <View style={styles.menuCard}>
             <MenuRow icon="help-circle-outline" label="Aide & Contact" onPress={() => navigation.navigate('HelpSupport')} />
+            <MenuRow icon="shield-checkmark-outline" label="Politique de confidentialité" onPress={() => Linking.openURL('https://diettemple.tn/privacy-policy').catch(() => {})} />
             <MenuRow icon="gavel" iconLib="material" label="Mentions légales" onPress={() => navigation.navigate('LegalNotices')} />
             <MenuRow icon="trash-outline" label="Effacer les données locales" onPress={handleClearStorage} danger last />
           </View>

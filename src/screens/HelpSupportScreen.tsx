@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState } from 'react';
 import {
   View,
@@ -132,7 +133,7 @@ export default function HelpSupportScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.faqQuestion, { color: colors.text }]}>{faq.question}</Text>
-                <View style={[styles.expandIcon, { backgroundColor: isExpanded ? '#D4AF37' : '#D4AF37' }]}>
+                <View style={[styles.expandIcon, { backgroundColor: isExpanded ? BRAND_YELLOW : BRAND_YELLOW }]}>
                   <Ionicons
                     name={isExpanded ? 'chevron-up' : 'chevron-down'}
                     size={16}
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,

@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 // Safe color access utility
 // Use this when colors might be undefined during module initialization
 
@@ -8,7 +9,7 @@ export const getColor = (key: keyof typeof colors): string => {
     // Fallback colors
     const fallbacks: Record<string, string> = {
       background: '#000000',
-      primary: '#D4AF37',
+      primary: BRAND_YELLOW,
       text: '#FFFFFF',
       textSecondary: '#CCCCCC',
       error: '#FF0000',

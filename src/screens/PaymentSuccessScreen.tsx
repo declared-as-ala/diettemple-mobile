@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -227,14 +228,14 @@ export default function PaymentSuccessScreen() {
       >
         {/* Success Message */}
         <View style={styles.successContainer}>
-          <View style={[styles.successIcon, { backgroundColor: '#D4AF37' }]}>
+          <View style={[styles.successIcon, { backgroundColor: BRAND_YELLOW }]}>
             <Ionicons name="checkmark" size={48} color="#000000" />
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>
             Commande confirmée
           </Text>
           <Text style={[styles.successSubtitle, { color: colors.textSecondary }]}>
-            Un email de confirmation a été envoyé à votre adresse.
+            Votre confirmation sera envoyée à l’adresse e-mail indiquée.
           </Text>
         </View>
 
@@ -285,7 +286,7 @@ export default function PaymentSuccessScreen() {
       {/* Done Button */}
       <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <TouchableOpacity
-          style={[styles.doneButton, { backgroundColor: '#D4AF37' }]}
+          style={[styles.doneButton, { backgroundColor: BRAND_YELLOW }]}
           onPress={() => {
             navigation.reset({
               index: 0,

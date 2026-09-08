@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from './brand';
 /**
  * Premium Nutrition page: dark luxury theme with gold/yellow accents.
  * Matches reference design (gold CTA, dark cards, macro accent colors).
@@ -9,13 +10,13 @@ export const nutritionColors = {
   card: '#151518',
   cardBorder: 'rgba(255,255,255,0.06)',
   /** Gold CTA and primary accent */
-  gold: '#D4AF37',
+  gold: BRAND_YELLOW,
   goldDim: 'rgba(212,175,55,0.15)',
   /** Text */
   text: '#F3F4F6',
   textSecondary: '#9CA3AF',
   /** Macro accents (reference: gold/orange/green) */
-  protein: '#D4AF37',
+  protein: BRAND_YELLOW,
   carbs: '#F97316',
   fat: '#22C55E',
   /** Progress track */

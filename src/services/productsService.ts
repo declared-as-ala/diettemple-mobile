@@ -3,6 +3,16 @@ import api from './api';
 export interface Product {
   _id: string;
   name: string;
+  brand?: string;
+  weight?: string;
+  flavors?: string[];
+  composition?: {
+    protein?: string;
+    calories?: string;
+    carbs?: string;
+    fat?: string;
+    aminoAcids?: string;
+  };
   description: string;
   price: number;
   discount?: number;

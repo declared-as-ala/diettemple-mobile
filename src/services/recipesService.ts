@@ -1,5 +1,6 @@
 import api from './api';
 import type { Recipe } from '../types';
+import { collectRecipePages } from '../utils/recipeSelection';
 
 export interface RecipeFilters {
   page?: number;
@@ -10,7 +11,7 @@ export interface RecipeFilters {
   matchMode?: 'all' | 'partial';
 }
 
-export async function getRecipes(filters: RecipeFilters = {}): Promise<{ recipes: Recipe[]; page: number; totalPages: number; total: number }> {
+export async function getRecipes(filters: RecipeFilters = {}, signal?: AbortSignal): Promise<{ recipes: Recipe[]; page: number; totalPages: number; total: number }> {
   const params: Record<string, string | number> = {};
   if (filters.page) params.page = filters.page;
   if (filters.limit) params.limit = filters.limit;
@@ -18,7 +19,7 @@ export async function getRecipes(filters: RecipeFilters = {}): Promise<{ recipes
   if (filters.mealPrepDays != null) params.mealPrepDays = filters.mealPrepDays;
   if (filters.ingredients && filters.ingredients.length > 0) params.ingredients = filters.ingredients.join(',');
   if (filters.matchMode) params.matchMode = filters.matchMode;
-  const res = await api.get<{ recipes: Recipe[]; page: number; totalPages: number; total: number }>('/recipes', { params });
+  const res = await api.get<{ recipes: Recipe[]; page: number; totalPages: number; total: number }>('/recipes', { params, signal });
   return {
     recipes: res.data?.recipes || [],
     page: res.data?.page ?? 1,
@@ -26,6 +27,8 @@ export async function getRecipes(filters: RecipeFilters = {}): Promise<{ recipes
     total: res.data?.total ?? 0,
   };
 }
+
+export const getAllRecipes = (signal?: AbortSignal) => collectRecipePages(page => getRecipes({ page, limit: 100 }, signal), signal);
 
 export async function getFavoriteRecipeIds(): Promise<string[]> {
   try {

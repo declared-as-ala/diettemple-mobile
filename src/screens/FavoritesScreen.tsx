@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -25,7 +26,7 @@ type FavoritesScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Fa
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
-const ACCENT = '#D4AF37';
+const ACCENT = BRAND_YELLOW;
 
 export default function FavoritesScreen() {
   const navigation = useNavigation<FavoritesScreenNavigationProp>();
@@ -68,7 +69,7 @@ export default function FavoritesScreen() {
       showSnackbar({
         message: 'Ajouté au panier ✅',
         duration: 2000,
-        action: { label: 'Voir', onPress: () => navigation.navigate('Cart') },
+        action: { label: 'Voir le panier', onPress: () => navigation.navigate('Cart') },
       });
     } catch {
       showSnackbar({ message: 'Impossible d\'ajouter au panier', duration: 2500 });
@@ -283,3 +284,4 @@ const styles = StyleSheet.create({
   },
   ctaPrimaryText: { fontSize: 16, fontWeight: '700', color: '#000' },
 });
+

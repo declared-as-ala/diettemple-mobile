@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -114,7 +115,7 @@ export default function GymPhotoCaptureScreen() {
             Nous avons besoin de votre permission pour prendre une photo dans la salle de sport
           </Text>
           <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: '#D4AF37' }]}
+            style={[styles.permissionButton, { backgroundColor: BRAND_YELLOW }]}
             onPress={requestPermission}
           >
             <Text style={styles.permissionButtonText}>Autoriser la caméra</Text>
@@ -153,7 +154,7 @@ export default function GymPhotoCaptureScreen() {
               <Text style={styles.actionButtonText}>Reprendre</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#D4AF37' }]}
+              style={[styles.actionButton, { backgroundColor: BRAND_YELLOW }]}
               onPress={handleContinue}
             >
               <Ionicons name="checkmark" size={24} color="#000000" />
@@ -327,13 +328,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
   },
   captureButtonInner: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
   },
   photoContainer: {
     flex: 1,

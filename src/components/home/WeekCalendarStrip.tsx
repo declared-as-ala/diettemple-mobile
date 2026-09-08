@@ -1,10 +1,11 @@
+import { BRAND_YELLOW } from '../../constants/brand';
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import type { WeekDayStatus, WeekPlanDay } from '../../services/meService';
 import { getLocalDateKey } from '../../utils/date';
 import { getWorkoutStatusForDate } from '../../hooks/useTodayWorkout';
 
-const GOLD = '#D4AF37';
+const GOLD = BRAND_YELLOW;
 const SCREEN_W = Dimensions.get('window').width;
 // 16px horizontal padding on each side from scrollContent + 14px card padding
 const STRIP_H_PAD = 14;

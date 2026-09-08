@@ -1,3 +1,4 @@
+import { BRAND_YELLOW } from '../constants/brand';
 import React, { useRef, useEffect } from 'react';
 import {
   View,
@@ -111,7 +112,7 @@ export default function ExerciseCard({
               <Text style={styles.exerciseName}>{exercise.name}</Text>
             </View>
             <TouchableOpacity onPress={onShowAlternatives} style={styles.alternativesButton}>
-              <Ionicons name="swap-vertical" size={24} color="#D4AF37" />
+              <Ionicons name="swap-vertical" size={24} color={BRAND_YELLOW} />
               <Text style={styles.alternativesText}>Alternatives</Text>
             </TouchableOpacity>
           </View>
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
     borderRadius: 2,
   },
   skipButton: {
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   muscleGroup: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 14,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   alternativesText: {
-    color: '#D4AF37',
+    color: BRAND_YELLOW,
     fontSize: 10,
     fontWeight: '600',
     marginTop: 4,
@@ -252,11 +253,11 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   setBadgeCompleted: {
-    backgroundColor: '#D4AF37',
-    borderColor: '#D4AF37',
+    backgroundColor: BRAND_YELLOW,
+    borderColor: BRAND_YELLOW,
   },
   setBadgeCurrent: {
-    borderColor: '#D4AF37',
+    borderColor: BRAND_YELLOW,
     borderWidth: 3,
   },
   setBadgeText: {
