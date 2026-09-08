@@ -5,6 +5,8 @@ import { profileService } from '../services/profileService';
 
 interface ProfileData {
   name: string;
+  email?: string;
+  address?: string;
   photoUri: string | null;
   age: string;
   sexe: string;
@@ -15,13 +17,15 @@ interface ProfileData {
 
 interface ProfileStore {
   profile: ProfileData;
-  updateProfile: (updates: Partial<ProfileData>) => Promise<void>;
+  updateProfile: (updates: Partial<ProfileData & { currentPassword?: string; newPassword?: string }>) => Promise<void>;
   loadProfile: () => Promise<void>;
   syncWithBackend: () => Promise<void>;
 }
 
 const defaultProfile: ProfileData = {
   name: '',
+  email: '',
+  address: '',
   photoUri: null,
   age: '20',
   sexe: 'Homme',
@@ -99,8 +103,15 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       const response = await profileService.getProfile();
       const user = response.user;
       
+      const rawAddress = (user as any).address;
+      const addressStr = typeof rawAddress === 'string'
+        ? rawAddress
+        : (rawAddress?.line1 || rawAddress?.city ? [rawAddress.line1, rawAddress.city, rawAddress.country].filter(Boolean).join(', ') : '');
+
       const backendProfile: ProfileData = {
         name: user.name || '',
+        email: user.email || '',
+        address: addressStr || '',
         photoUri: (user as any).photoUri || null,
         age: (user as any).age || '20',
         sexe: (user as any).sexe || 'Homme',

@@ -367,7 +367,7 @@ export default function ProfileScreen() {
           {/* ── Modifier profil ──────────────────────────────────────── */}
           <Text style={styles.sectionLabel}>MODIFIER PROFIL</Text>
           <View style={styles.menuCard}>
-            <MenuRow icon="person-outline" label="Modifier le profil" onPress={() => handleEditStat('name')} />
+            <MenuRow icon="person-outline" label="Modifier le profil" onPress={() => navigation.navigate('EditProfile')} />
             <MenuRow icon="lock-closed-outline" label="Changer le mot de passe" onPress={() => navigation.navigate('ChangePassword')} last />
           </View>
 

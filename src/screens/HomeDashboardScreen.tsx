@@ -1048,49 +1048,7 @@ export default function HomeDashboardScreen() {
             )}
           </View>
 
-          {/* ── Plan card (programme progress) moved lower priority ───── */}
-          {(usePlanCalendar && planStartDate && planEndDate) && (
-            <LinearGradient
-              colors={['#1A1200', '#201800', '#1A1200']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.planCard}
-            >
-              <View style={styles.planCardAccent} />
 
-              <View style={styles.planCardLeft}>
-                <Text style={styles.planCardLabel}>MON PROGRAMME</Text>
-                <Text style={styles.planCardWeek}>
-                  Semaine {activePlanWeek} / {durationWeeks}
-                </Text>
-                <View style={styles.planProgressBg}>
-                  <View style={[styles.planProgressFill, { width: `${planProgressPct}%` }]} />
-                </View>
-                <Text style={styles.planProgressPct}>
-                  {Math.round(planProgressPct)}% complété
-                </Text>
-              </View>
-
-              <View style={styles.planCardRight}>
-                {isExpired ? (
-                  <View style={[styles.planStatusPill, styles.planStatusExpired]}>
-                    <Text style={styles.planStatusText}>Expiré</Text>
-                  </View>
-                ) : isExpiringSoon ? (
-                  <View style={[styles.planStatusPill, styles.planStatusExpiring]}>
-                    <Text style={styles.planStatusText}>{subscriptionState.daysLeft}j</Text>
-                  </View>
-                ) : (
-                  <View style={[styles.planStatusPill, styles.planStatusActive]}>
-                    <Text style={styles.planStatusText}>Actif</Text>
-                  </View>
-                )}
-                <Text style={styles.planEndDate}>
-                  Fin {formatShortDateFr(planEndDate)}
-                </Text>
-              </View>
-            </LinearGradient>
-          )}
 
           {/* ── Error ───────────────────────────────────────────────── */}
           {error && (

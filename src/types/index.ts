@@ -5,6 +5,7 @@ export interface User {
   email?: string;
   phone?: string;
   name?: string;
+  address?: string | { line1?: string; line2?: string; city?: string; postalCode?: string; country?: string };
   photoUri?: string;
   avatar?: string;
   badgePhoto?: string;
@@ -65,7 +66,7 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   LegalNotices: undefined;
   HelpSupport: undefined;
-  EditProfile: { field: 'name' | 'age' | 'sexe' | 'poids' | 'taille' | 'objectif'; currentValue: string };
+  EditProfile: { field?: 'name' | 'age' | 'sexe' | 'poids' | 'taille' | 'objectif'; currentValue?: string } | undefined;
   Boutique: undefined;
   ProductDetail: { productId: string };
   SearchProducts: undefined;

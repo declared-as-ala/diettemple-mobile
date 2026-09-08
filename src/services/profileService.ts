@@ -5,12 +5,16 @@ import { User } from '../types';
 
 export interface ProfileUpdateData {
   name?: string;
+  email?: string;
+  address?: string | { line1?: string; city?: string; postalCode?: string; country?: string };
   photoUri?: string;
   age?: string;
   sexe?: string;
   poids?: string;
   taille?: string;
   objectif?: string;
+  currentPassword?: string;
+  newPassword?: string;
 }
 
 export interface ChangePasswordData {
