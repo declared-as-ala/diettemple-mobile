@@ -297,11 +297,6 @@ export default function HomeDashboardScreen() {
   }, []);
 
   const { data: todayNutritionData, loading: nutritionLoading } = useTodayNutritionData(!!token && !!isAuthenticated);
-  const {
-    data: weeklyValidation,
-    loading: weeklyValidationLoading,
-    refetch: refetchWeeklyValidation,
-  } = useWeeklyValidation(!!token && !!isAuthenticated);
 
   const plan = dashboard?.plan;
   const activeAssignment = activePlan?.assignment;
@@ -341,6 +336,13 @@ export default function HomeDashboardScreen() {
     : getCurrentWeekDates(weekOffset);
   const maxWeeks = usePlanCalendar ? durationWeeks : Math.max(5, durationWeeks);
   const displayWeekNumber = usePlanCalendar ? activePlanWeek : Math.min(maxWeeks, Math.max(1, todayWeekNumber + weekOffset));
+
+  const currentWeekDateKey = weekDates[0] ? getLocalDateKey(weekDates[0]) : undefined;
+  const {
+    data: weeklyValidation,
+    loading: weeklyValidationLoading,
+    refetch: refetchWeeklyValidation,
+  } = useWeeklyValidation(!!token && !!isAuthenticated, currentWeekDateKey);
 
   // Navigation boundary flags — prevent going outside the 5-week plan window
   const prevWeekDisabled = usePlanCalendar && activePlanWeek <= 1;

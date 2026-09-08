@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { meService, WeeklyValidationResponse } from '../services/meService';
 
-export function useWeeklyValidation(enabled: boolean) {
+export function useWeeklyValidation(enabled: boolean, date?: string) {
   const [data, setData] = useState<WeeklyValidationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -11,7 +11,7 @@ export function useWeeklyValidation(enabled: boolean) {
     setLoading(true);
     setError(null);
     try {
-      const response = await meService.getWeeklyValidation();
+      const response = await meService.getWeeklyValidation(date);
       setData(response);
     } catch (e: any) {
       setError(e?.message || 'weekly_validation_failed');
@@ -19,7 +19,7 @@ export function useWeeklyValidation(enabled: boolean) {
     } finally {
       setLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, date]);
 
   useEffect(() => {
     load();

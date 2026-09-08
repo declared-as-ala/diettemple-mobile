@@ -355,8 +355,9 @@ export const meService = {
     return res.data;
   },
 
-  getWeeklyValidation: async (): Promise<WeeklyValidationResponse> => {
-    const res = await api.get<WeeklyValidationResponse>('/me/weekly-validation');
+  getWeeklyValidation: async (date?: string): Promise<WeeklyValidationResponse> => {
+    const params = date ? `?date=${encodeURIComponent(date)}` : '';
+    const res = await api.get<WeeklyValidationResponse>(`/me/weekly-validation${params}`);
     return res.data;
   },
 
