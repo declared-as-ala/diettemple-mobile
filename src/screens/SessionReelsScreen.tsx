@@ -22,6 +22,7 @@ import {
   Pressable,
   Platform,
   KeyboardAvoidingView,
+  StatusBar as RNStatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -233,6 +234,11 @@ function HistoryPanel({
     }, 150);
   }, []);
 
+  const androidStatusBar = RNStatusBar.currentHeight || 0;
+  const topPadding = Platform.OS === 'android'
+    ? Math.max(androidStatusBar + 24, insets.top + 20, 68)
+    : Math.max(insets.top + 16, 60);
+
   return (
     <View style={hp.container}>
       <LinearGradient colors={['#0a0a0a', '#121212']} style={StyleSheet.absoluteFill} />
@@ -248,7 +254,7 @@ function HistoryPanel({
           contentContainerStyle={[
             hp.scrollContent,
             {
-              paddingTop: Math.max(insets.top + 16, 58),
+              paddingTop: topPadding,
               paddingBottom: keyboardHeight > 0
                 ? keyboardHeight + 120
                 : Math.max(insets.bottom, 20) + 70,
