@@ -1090,18 +1090,8 @@ export default function SessionReelsScreen() {
       setRecommendedWeightForNextSet(recommendedNextKg);
       setSavingSet(false);
 
-      // Close the runner so the auto-slide is unobstructed; the rest timer (if any) will appear on top.
+      // Close the runner; the rest timer (if any) will appear on top.
       setSetRunnerVisible(false);
-
-      // Slide right to History to show the freshly saved set, then back to the video.
-      if (slideTimeoutRef.current) clearTimeout(slideTimeoutRef.current);
-      const ref = horizontalScrollRefs.current[currentIndex];
-      ref?.scrollTo({ x: width, y: 0, animated: true });
-      slideTimeoutRef.current = setTimeout(() => {
-        const r = horizontalScrollRefs.current[currentIndex];
-        r?.scrollTo({ x: 0, y: 0, animated: true });
-        slideTimeoutRef.current = null;
-      }, 1000);
 
       if (isLastSet) {
         void playCompletionSound();
