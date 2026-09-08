@@ -183,8 +183,8 @@ export default function WeeklyValidationCard({ loading, data }: Props) {
       {/* 7-Days Visual Schedule */}
       <View style={styles.weekGrid}>
         {data.days.map((day) => {
-          const isRest = !!day.isRestDay;
-          const isDone = !!day.workoutCompleted;
+          const isRest = day.hasScheduledWorkout === false || !!day.isRestDay;
+          const isDone = !isRest && !!day.workoutCompleted;
           const isToday = !!day.isToday;
 
           return (
@@ -207,10 +207,10 @@ export default function WeeklyValidationCard({ loading, data }: Props) {
                 {day.label}
               </Text>
               <View style={styles.dayIconSlot}>
-                {isDone ? (
-                  <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
-                ) : isRest ? (
+                {isRest ? (
                   <Text style={styles.restChipText}>REPOS</Text>
+                ) : isDone ? (
+                  <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
                 ) : (
                   <Ionicons name="barbell-outline" size={12} color="rgba(255,255,255,0.25)" />
                 )}
