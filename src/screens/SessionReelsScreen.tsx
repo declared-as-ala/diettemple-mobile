@@ -234,10 +234,10 @@ function HistoryPanel({
     }, 150);
   }, []);
 
-  const androidStatusBar = RNStatusBar.currentHeight || 0;
+  const androidStatusBar = RNStatusBar.currentHeight || 28;
   const topPadding = Platform.OS === 'android'
-    ? Math.max(androidStatusBar + 24, insets.top + 20, 68)
-    : Math.max(insets.top + 16, 60);
+    ? Math.max(androidStatusBar + 48, (insets.top || 0) + 48, 92)
+    : Math.max(insets.top + 24, 72);
 
   return (
     <View style={hp.container}>
