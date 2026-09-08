@@ -301,6 +301,8 @@ export interface WeeklyValidationDay {
   label: string;
   workoutCompleted: boolean;
   nutritionGoalCompleted: boolean;
+  hasScheduledWorkout?: boolean;
+  isRestDay?: boolean;
   isValidated: boolean;
   isToday: boolean;
 }
@@ -309,13 +311,17 @@ export interface WeeklyValidationResponse {
   weekStart: string;
   weekEnd: string;
   validatedDaysCount: number;
+  completedWorkoutsCount?: number;
+  targetWorkoutSessions?: number;
   totalDays: number;
   today: {
     date: string;
     workoutCompleted: boolean;
     nutritionGoalCompleted: boolean;
+    hasScheduledWorkout?: boolean;
+    isRestDay?: boolean;
     isValidated: boolean;
-    statusLabel: 'Journée validée' | 'Journée non validée';
+    statusLabel: string;
     missing: Array<'workout' | 'nutrition'>;
   };
   days: WeeklyValidationDay[];
