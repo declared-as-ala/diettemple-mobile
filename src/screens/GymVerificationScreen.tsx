@@ -155,6 +155,8 @@ export default function GymVerificationScreen() {
         navigation.replace('SessionReels', {
           sessionTemplateId: sessionId,
           session: reelsSession,
+          workoutSessionId: workoutSession?._id,
+          resumeFromStorage: true,
         });
       } else {
         navigation.replace('SessionQuickStart', { sessionId });

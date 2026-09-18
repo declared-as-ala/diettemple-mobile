@@ -45,6 +45,7 @@ export default function DayGalleryDetailsScreen() {
 
   const [entry, setEntry] = useState<GalleryDayEntry | null>(null);
   const [notes, setNotes] = useState('');
+  const [consentGiven, setConsentGiven] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   /** split = côte à côte; before | after = une photo plein cadre */
@@ -55,6 +56,7 @@ export default function DayGalleryDetailsScreen() {
     const e = await galleryStorage.get(dateKey);
     setEntry(e ?? null);
     setNotes(e?.notes ?? '');
+    setConsentGiven(e?.staffConsentGiven !== false);
     setLoading(false);
   }, [dateKey]);
 
@@ -110,14 +112,15 @@ export default function DayGalleryDetailsScreen() {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await galleryStorage.set(dateKey, { notes });
+      await galleryStorage.set(dateKey, { notes, staffConsentGiven: consentGiven });
+      await galleryStorage.setGlobalConsent(consentGiven);
       Toast.show({ type: 'success', text1: 'Enregistré' });
     } catch {
       Toast.show({ type: 'error', text1: 'Erreur d\'enregistrement' });
     } finally {
       setSaving(false);
     }
-  }, [dateKey, notes]);
+  }, [dateKey, notes, consentGiven]);
 
   const hasBefore = !!entry?.beforeUri;
   const hasAfter = !!entry?.afterUri;
@@ -278,6 +281,25 @@ export default function DayGalleryDetailsScreen() {
           multiline
         />
 
+        {/* Autorisation de suivi coach */}
+        <TouchableOpacity
+          style={[styles.consentCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+          onPress={() => setConsentGiven((prev) => !prev)}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={consentGiven ? 'checkbox' : 'square-outline'}
+            size={22}
+            color={consentGiven ? ACCENT : colors.textSecondary}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.consentTitle, { color: colors.text }]}>Autorisation de suivi coach</Text>
+            <Text style={[styles.consentText, { color: colors.textSecondary }]}>
+              J'autorise l'équipe et les coachs DietTemple à consulter mes photos d'évolution dans le cadre strict du suivi de mon programme.
+            </Text>
+          </View>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
           onPress={handleSave}
@@ -382,6 +404,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     marginBottom: 24,
+  },
+  consentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  consentTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  consentText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   saveBtn: {
     backgroundColor: ACCENT,

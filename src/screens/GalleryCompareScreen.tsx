@@ -17,9 +17,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { captureRef } from 'react-native-view-shot';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { useTheme } from '../context/ThemeContext';
 import { galleryStorage } from '../services/galleryStorage';
 import type { HomeDrawerParamList } from '../navigation/HomeDrawerStack';
@@ -60,7 +57,6 @@ export default function GalleryCompareScreen() {
   const { showSnackbar } = useSnackbar();
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RoutePropType>();
-  const exportCompositeRef = useRef<View>(null);
 
   const paramDateA = route.params?.dateA;
   const paramDateB = route.params?.dateB;
@@ -72,9 +68,6 @@ export default function GalleryCompareScreen() {
   const [uriA, setUriA] = useState<string | null>(null);
   const [uriB, setUriB] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [generatedUri, setGeneratedUri] = useState<string | null>(null);
-  const autoGenTriggered = useRef(false);
 
   const loadDates = useCallback(async () => {
     setLoading(true);
@@ -118,61 +111,6 @@ export default function GalleryCompareScreen() {
     });
     return () => { cancelled = true; };
   }, [dateB]);
-
-  const handleGenerate = useCallback(async () => {
-    if (!uriA || !uriB || !exportCompositeRef.current) return;
-    setGenerating(true);
-    setGeneratedUri(null);
-    try {
-      const uri = await captureRef(exportCompositeRef, {
-        format: 'jpg',
-        quality: 1,
-        width: EXPORT_WIDTH,
-        height: EXPORT_HEIGHT,
-        result: 'tmpfile',
-      });
-      if (uri) setGeneratedUri(uri);
-    } catch {
-      showSnackbar({ message: "Impossible de générer l'image.", duration: 2600 });
-    } finally {
-      setGenerating(false);
-    }
-  }, [uriA, uriB, showSnackbar]);
-
-  // Auto-generate when both URIs are ready (only for preselected dates)
-  useEffect(() => {
-    if (!hasPreselection || autoGenTriggered.current) return;
-    if (uriA && uriB && exportCompositeRef.current) {
-      autoGenTriggered.current = true;
-      handleGenerate();
-    }
-  }, [uriA, uriB, hasPreselection, handleGenerate]);
-
-  const handleSave = useCallback(async () => {
-    if (!generatedUri) return;
-    try {
-      const dir = `${FileSystem.documentDirectory}gallery`;
-      const exists = await FileSystem.getInfoAsync(dir);
-      if (!exists.exists) await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-      const name = `transformation_${Date.now()}.jpg`;
-      const dest = `${dir}/${name}`;
-      await FileSystem.copyAsync({ from: generatedUri, to: dest });
-      showSnackbar({ message: "Image enregistrée dans l'application.", duration: 2200 });
-    } catch {
-      showSnackbar({ message: "Impossible d'enregistrer l'image.", duration: 2600 });
-    }
-  }, [generatedUri, showSnackbar]);
-
-  const handleShare = useCallback(async () => {
-    if (!generatedUri) return;
-    try {
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) await Sharing.shareAsync(generatedUri, { mimeType: 'image/jpeg' });
-      else showSnackbar({ message: "Le partage n'est pas disponible sur cet appareil.", duration: 2400 });
-    } catch {
-      showSnackbar({ message: 'Impossible de partager.', duration: 2600 });
-    }
-  }, [generatedUri, showSnackbar]);
 
   const hasSelection = dateA && dateB && uriA && uriB;
 
@@ -248,7 +186,6 @@ export default function GalleryCompareScreen() {
                         return;
                       }
                       setDateA(d);
-                      setGeneratedUri(null);
                     }}
                   >
                     <Text style={[styles.dateChipText, { color: dateA === d ? '#000' : colors.text }]} numberOfLines={1}>
@@ -276,7 +213,6 @@ export default function GalleryCompareScreen() {
                         return;
                       }
                       setDateB(d);
-                      setGeneratedUri(null);
                     }}
                   >
                     <Text style={[styles.dateChipText, { color: dateB === d ? '#000' : colors.text }]} numberOfLines={1}>
@@ -308,80 +244,10 @@ export default function GalleryCompareScreen() {
             </View>
           </>
         )}
-
-        {/* Generate button — only show if not auto-generating */}
-        {hasSelection && !generating && !generatedUri && (
-          <TouchableOpacity
-            style={[styles.generateBtn, { backgroundColor: ACCENT }]}
-            onPress={handleGenerate}
-          >
-            <Ionicons name="git-compare" size={22} color="#000" />
-            <Text style={styles.generateBtnText}>Générer la fusion</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Generating spinner */}
-        {generating && (
-          <View style={styles.generatingWrap}>
-            <AppLoader variant="inline" size="lg" label="Génération en cours…" />
-          </View>
-        )}
-
-        {/* Generated result */}
-        {generatedUri && (
-          <>
-            <Text style={[styles.sectionLabel, { color: colors.text }]}>Image fusionnée</Text>
-            <Image
-              source={{ uri: generatedUri }}
-              style={styles.generatedPreview}
-              resizeMode="contain"
-            />
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-                onPress={handleSave}
-              >
-                <Ionicons name="save-outline" size={22} color={colors.text} />
-                <Text style={[styles.actionBtnText, { color: colors.text }]}>Enregistrer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: ACCENT }]} onPress={handleShare}>
-                <Ionicons name="share-outline" size={22} color="#000" />
-                <Text style={styles.actionBtnTextDark}>Partager</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={[styles.regenerateBtn, { borderColor: colors.border }]}
-              onPress={() => { setGeneratedUri(null); handleGenerate(); }}
-            >
-              <Ionicons name="refresh" size={16} color={colors.textSecondary} />
-              <Text style={[styles.regenerateBtnText, { color: colors.textSecondary }]}>Regénérer</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
         {!hasSelection && datesWithPhotos.length < 2 && (
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
             Ajoutez au moins deux photos à des dates différentes pour comparer.
           </Text>
-        )}
-
-        {/* Hidden high-resolution export canvas */}
-        {uriA && uriB && (
-          <View style={styles.exportCanvasWrap} pointerEvents="none">
-            <View collapsable={false} ref={exportCompositeRef} style={styles.exportCompositeContainer}>
-              <Text style={styles.exportCompositeTitle}>Transformation</Text>
-              <View style={styles.exportCompositeRow}>
-                <View style={styles.exportCompositeHalf}>
-                  <Image source={{ uri: uriA }} style={styles.exportCompositeImage} resizeMode="contain" />
-                  <Text style={styles.exportCompositeDateLabel}>{dateA ? formatDateLabel(dateA) : ''}</Text>
-                </View>
-                <View style={styles.exportCompositeHalf}>
-                  <Image source={{ uri: uriB }} style={styles.exportCompositeImage} resizeMode="contain" />
-                  <Text style={styles.exportCompositeDateLabel}>{dateB ? formatDateLabel(dateB) : ''}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
         )}
       </ScrollView>
     </DrawerScreenContainer>
@@ -473,68 +339,5 @@ const styles = StyleSheet.create({
   },
   compositeDateLabel: { fontSize: 11, color: 'rgba(255,255,255,0.9)', marginTop: 4, fontWeight: '600' },
 
-  // Generate button
-  generateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-  },
-  generateBtnText: { fontSize: 16, fontWeight: '800', color: '#000' },
-
-  // Generating spinner
-  generatingWrap: { alignItems: 'center', paddingVertical: 32 },
-
-  // Generated result
-  generatedPreview: {
-    width: '100%',
-    aspectRatio: COMPOSITE_WIDTH / (COMPOSITE_WIDTH * COMPOSITE_ASPECT),
-    borderRadius: 12,
-    backgroundColor: '#111',
-    marginBottom: 16,
-  },
-  actionRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  actionBtnText: { fontSize: 15, fontWeight: '700' },
-  actionBtnTextDark: { fontSize: 15, fontWeight: '700', color: '#000' },
-  regenerateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  regenerateBtnText: { fontSize: 13, fontWeight: '600' },
-
   hint: { fontSize: 13, textAlign: 'center', marginTop: 16 },
-
-  // Hidden export canvas
-  exportCanvasWrap: { position: 'absolute', left: -9999, top: -9999, opacity: 0 },
-  exportCompositeContainer: {
-    width: EXPORT_WIDTH,
-    height: EXPORT_HEIGHT,
-    backgroundColor: '#111',
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  exportCompositeTitle: { fontSize: 54, fontWeight: '800', color: '#fff', textAlign: 'center', paddingVertical: 30 },
-  exportCompositeRow: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 24, gap: 18, flex: 1 },
-  exportCompositeHalf: { flex: 1, alignItems: 'center' },
-  exportCompositeImage: { width: '100%', flex: 1, borderRadius: 16, backgroundColor: '#222' },
-  exportCompositeDateLabel: { fontSize: 26, color: 'rgba(255,255,255,0.9)', marginTop: 10, fontWeight: '700' },
 });

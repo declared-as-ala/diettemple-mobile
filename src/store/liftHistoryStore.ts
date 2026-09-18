@@ -43,7 +43,10 @@ export const useLiftHistoryStore = create<LiftHistoryStore>()(
       },
 
       getPersonalRecord: (exerciseId: string) => {
-        const history = get().liftHistory.filter((lift) => lift.exerciseId === exerciseId);
+        // PR is valid only when repetitions are between 5 and 8 reps
+        const history = get().liftHistory.filter(
+          (lift) => lift.exerciseId === exerciseId && lift.reps >= 5 && lift.reps <= 8
+        );
         if (history.length === 0) return null;
         return history.reduce((pr, lift) => (lift.weight > pr.weight ? lift : pr));
       },

@@ -8,6 +8,9 @@ export function useWorkoutCompletionSound(soundAsset: number) {
     let mounted = true;
     (async () => {
       try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: false,
+        });
         const { sound } = await Audio.Sound.createAsync(soundAsset, { shouldPlay: false });
         if (!mounted) {
           await sound.unloadAsync();
@@ -29,15 +32,34 @@ export function useWorkoutCompletionSound(soundAsset: number) {
     };
   }, [soundAsset]);
 
-  const play = useCallback(async () => {
+  const playExerciseCompleteSound = useCallback(async () => {
     const sound = soundRef.current;
     if (!sound) return;
     try {
       await sound.stopAsync();
       await sound.setPositionAsync(0);
+      // Clean, higher-tempo tone for exercise completion (WhatsApp-like short cue)
+      await sound.setRateAsync(1.25, true);
       await sound.playAsync();
     } catch {}
   }, []);
 
-  return { play };
+  const playWorkoutCompleteSound = useCallback(async () => {
+    const sound = soundRef.current;
+    if (!sound) return;
+    try {
+      await sound.stopAsync();
+      await sound.setPositionAsync(0);
+      // Standard full-tempo celebratory sound for entire workout completion
+      await sound.setRateAsync(1.0, true);
+      await sound.playAsync();
+    } catch {}
+  }, []);
+
+  return {
+    play: playWorkoutCompleteSound,
+    playExerciseCompleteSound,
+    playWorkoutCompleteSound,
+  };
 }
+

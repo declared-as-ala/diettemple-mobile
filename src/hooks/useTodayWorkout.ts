@@ -78,7 +78,10 @@ export function resolveTodayWorkout(today: TodayResponse['today'] | null | undef
 
   // Prefer rattrapageSession (new) over missedSession (legacy alias)
   const missed = today.rattrapageSession ?? today.missedSession ?? null;
-  const hasRattrapage = !!missed && !completedRattrapage;
+  // Rattrapage is strictly valid ONLY during the same program week (Requirement 4)
+  const isSameWeek =
+    !missed?.weekNumber || !today.weekNumber || missed.weekNumber === today.weekNumber;
+  const hasRattrapage = !!missed && !completedRattrapage && isSameWeek;
 
   // displayKind is now only for legacy rest-day detection; we no longer use it for card logic
   let kind: WorkoutDisplayKind;

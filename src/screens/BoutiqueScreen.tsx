@@ -113,11 +113,7 @@ export default function BoutiqueScreen() {
   />, [cardWidth, cartItems, favoriteProducts, getCartItem, isFavorited, hasActiveSubscription, navigation, toggleFavorite, addProduct, changeQuantity, handleUHPress]);
 
   const header = <>
-    {!hasActiveSubscription ? <UHPremiumBanner onPress={handleUHPress} /> : <View style={s.intro}>
-      <Text style={s.eyebrow}>NUTRITION & PERFORMANCE</Text>
-      <Text style={s.headline}>Le meilleur pour<Text style={s.headlineGold}> progresser.</Text></Text>
-      <Text style={s.description}>Votre sélection de nutrition sportive.</Text>
-    </View>}
+    {!hasActiveSubscription && <UHPremiumBanner onPress={handleUHPress} />}
     <TopFilterBar categories={categoryOptions} searchValue={search} onSearchChange={setSearch}
       selectedCategoryId={filters.category || ''} onCategorySelect={(category) => setFilters({ category: category || undefined, page: 1 })}
       filterBadgeCount={applied.length} onFilterPress={() => setSheetVisible(true)}

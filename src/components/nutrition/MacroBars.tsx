@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { nutritionColors } from '../../constants/nutritionColors';
+import { BRAND_YELLOW } from '../../constants/brand';
 
 interface MacroBarsProps {
   consumedProtein: number;
@@ -46,19 +46,19 @@ function MacroBarsComponent(props: MacroBarsProps) {
         label="Protéines"
         consumed={props.consumedProtein}
         target={props.targetProtein}
-        color="#D5BF87"
+        color={BRAND_YELLOW}
       />
       <MacroBar
         label="Glucides"
         consumed={props.consumedCarbs}
         target={props.targetCarbs}
-        color="#A9C8B0"
+        color="#60A5FA"
       />
       <MacroBar
         label="Lipides"
         consumed={props.consumedFat}
         target={props.targetFat}
-        color="#D5A787"
+        color="#22C55E"
       />
     </View>
   );
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   macroLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#D1DBC3',
+    color: '#E5E7EB',
     letterSpacing: 0.2,
   },
   macroValue: {
@@ -92,13 +92,13 @@ const styles = StyleSheet.create({
   },
   macroTarget: {
     fontSize: 11,
-    color: '#AEBF9B',
+    color: '#9CA3AF',
     fontWeight: '600',
   },
   track: {
-    height: 9,
+    height: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
   },
   fill: {
@@ -106,4 +106,3 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
 });
-

@@ -104,10 +104,6 @@ export default function EditProfileScreen() {
         name: name.trim(),
         email: email.trim() || undefined,
         address: address.trim() || undefined,
-        taille: taille.trim(),
-        poids: poids.trim(),
-        age: age.trim(),
-        sexe,
       };
 
       if (showPasswordSection && newPassword.trim()) {
@@ -209,88 +205,51 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-        {/* ── Section 2: Données physiques ── */}
+        {/* ── Section 2: Données physiques (Lecture seule pour le client) ── */}
         <View style={styles.sectionHeader}>
           <Ionicons name="barbell-outline" size={16} color={GOLD} />
           <Text style={styles.sectionTitle}>MENSURATIONS & CORPS</Text>
+          <View style={styles.readOnlyBadge}>
+            <Ionicons name="lock-closed" size={11} color={GOLD} />
+            <Text style={styles.readOnlyBadgeText}>Lecture seule</Text>
+          </View>
         </View>
 
         <View style={styles.card}>
           <View style={styles.rowTwo}>
             {/* Taille */}
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Taille (cm)</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="resize-outline" size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={taille}
-                  onChangeText={setTaille}
-                  placeholder="174"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
-                  keyboardType="numeric"
-                />
+            <View style={[styles.displayGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Taille</Text>
+              <View style={styles.displayWrap}>
+                <Ionicons name="resize-outline" size={18} color={GOLD} style={styles.inputIcon} />
+                <Text style={styles.displayText}>{taille ? `${taille} cm` : '—'}</Text>
               </View>
             </View>
 
-            {/* Poids */}
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Poids (kg)</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="speedometer-outline" size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={poids}
-                  onChangeText={setPoids}
-                  placeholder="80"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
-                  keyboardType="numeric"
-                />
+            {/* Âge */}
+            <View style={[styles.displayGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Âge</Text>
+              <View style={styles.displayWrap}>
+                <Ionicons name="calendar-outline" size={18} color={GOLD} style={styles.inputIcon} />
+                <Text style={styles.displayText}>{age ? `${age} ans` : '—'}</Text>
               </View>
             </View>
           </View>
 
-          <View style={[styles.rowTwo, { marginBottom: 0 }]}>
-            {/* Âge */}
-            <View style={[styles.inputGroup, { flex: 1, marginBottom: 0 }]}>
-              <Text style={styles.label}>Âge (ans)</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="calendar-outline" size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={age}
-                  onChangeText={setAge}
-                  placeholder="20"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
-                  keyboardType="numeric"
-                />
-              </View>
+          {/* Sexe */}
+          <View style={[styles.displayGroup, { marginBottom: 0 }]}>
+            <Text style={styles.label}>Sexe</Text>
+            <View style={styles.displayWrap}>
+              <Ionicons name="person-outline" size={18} color={GOLD} style={styles.inputIcon} />
+              <Text style={styles.displayText}>{sexe || 'Non renseigné'}</Text>
             </View>
+          </View>
 
-            {/* Sexe */}
-            <View style={[styles.inputGroup, { flex: 1, marginBottom: 0 }]}>
-              <Text style={styles.label}>Sexe</Text>
-              <View style={styles.sexeToggleRow}>
-                <TouchableOpacity
-                  style={[styles.sexeBtn, sexe === 'Homme' && styles.sexeBtnActive]}
-                  onPress={() => setSexe('Homme')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.sexeBtnText, sexe === 'Homme' && styles.sexeBtnTextActive]}>
-                    Homme
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.sexeBtn, sexe === 'Femme' && styles.sexeBtnActive]}
-                  onPress={() => setSexe('Femme')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.sexeBtnText, sexe === 'Femme' && styles.sexeBtnTextActive]}>
-                    Femme
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          <View style={styles.staffNotice}>
+            <Ionicons name="information-circle-outline" size={15} color="rgba(255,255,255,0.45)" />
+            <Text style={styles.staffNoticeText}>
+              Les mensurations et données corporelles sont mesurées et saisies exclusivement par le personnel agréé DietTemple.
+            </Text>
           </View>
         </View>
 
@@ -577,5 +536,57 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#000000',
     letterSpacing: 0.3,
+  },
+  readOnlyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(212,175,55,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.25)',
+  },
+  readOnlyBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: GOLD,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  displayGroup: {
+    marginBottom: 8,
+  },
+  displayWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 14,
+  },
+  displayText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    flex: 1,
+  },
+  staffNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  staffNoticeText: {
+    flex: 1,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: 15,
   },
 });

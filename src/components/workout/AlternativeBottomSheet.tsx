@@ -18,6 +18,8 @@ export interface AlternativeOption {
   muscleGroup?: string;
   equipment?: string;
   videoUrl?: string;
+  videoSource?: any;
+  description?: string;
   isPrimary?: boolean;
 }
 

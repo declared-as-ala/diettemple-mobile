@@ -1,5 +1,16 @@
+/**
+ * WorkoutResumeBar — floating "Reprendre / Continuer" card.
+ *
+ * Rules:
+ *  - Shown ONLY on Home (and any non-workout route), NEVER inside SessionReels
+ *    or any downstream workout screen.
+ *  - Dismissed flag resets every time the user navigates away from (and back to)
+ *    an eligible route so a stale dismissal never hides a valid session.
+ *  - Navigating to SessionReels passes the exact persisted snapshot so the
+ *    exact exercise / set / weight position is restored.
+ */
 import { BRAND_YELLOW } from '../../constants/brand';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,44 +23,102 @@ import {
 
 const ACCENT = BRAND_YELLOW;
 
-function getDeepestRouteName(state: { routes: { name: string; state?: unknown }[]; index: number } | undefined): string | undefined {
+/**
+ * Routes where the resume bar must NEVER be shown.
+ * Covers the full workout flow from pre-start through completion.
+ */
+const HIDDEN_ROUTES = new Set([
+  'SessionReels',
+  'SessionPreStart',
+  'SessionQuickStart',
+  'Warmup',
+  'WorkoutSession',
+  'ExerciseWorkout',
+  'WorkoutCompletion',
+  'SessionSummary',
+]);
+
+function getDeepestRouteName(
+  state: { routes: { name: string; state?: unknown }[]; index: number } | undefined
+): string | undefined {
   if (!state?.routes?.length || state.index == null) return undefined;
-  const route = state.routes[state.index] as { name: string; state?: { routes: unknown[]; index: number } };
-  if (route.state) return getDeepestRouteName(route.state as { routes: { name: string; state?: unknown }[]; index: number });
+  const route = state.routes[state.index] as {
+    name: string;
+    state?: { routes: unknown[]; index: number };
+  };
+  if (route.state) {
+    return getDeepestRouteName(
+      route.state as { routes: { name: string; state?: unknown }[]; index: number }
+    );
+  }
   return route.name;
 }
 
 function shouldHideForCurrentRoute(): boolean {
   if (!rootNavigationRef.isReady()) return false;
-  const state = rootNavigationRef.getState() as { routes: { name: string; state?: unknown }[]; index: number } | undefined;
+  const state = rootNavigationRef.getState() as
+    | { routes: { name: string; state?: unknown }[]; index: number }
+    | undefined;
   const name = getDeepestRouteName(state);
-  return name === 'SessionReels';
+  if (!name) return false;
+  return HIDDEN_ROUTES.has(name);
 }
 
 export default function WorkoutResumeBar() {
   const insets = useSafeAreaInsets();
   const authStatus = useAuthStore((s) => s.authStatus);
+  const activeSnapshot = useActiveWorkoutPersistStore((s) => s.activeSnapshot);
   const [snapshot, setSnapshot] = useState<PersistedWorkoutSnapshotV1 | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  // Track the last route where the bar was shown so we can reset `dismissed`
+  // when the user navigates to a different eligible route.
+  const lastShownRouteRef = useRef<string | undefined>(undefined);
 
+  // ── Keep snapshot in sync with store ────────────────────────────────────────
+  useEffect(() => {
+    if (activeSnapshot === null) {
+      setSnapshot(null);
+    } else {
+      setSnapshot(activeSnapshot);
+    }
+  }, [activeSnapshot]);
+
+  // ── Core refresh: re-evaluate whether we should show the bar ─────────────────
   const refresh = useCallback(async () => {
     if (authStatus !== 'LOGGED_IN') {
       setSnapshot(null);
       return;
     }
     if (!rootNavigationRef.isReady()) return;
+
     if (shouldHideForCurrentRoute()) {
+      // We are inside a workout screen — clear the bar without modifying storage.
       setSnapshot(null);
       return;
     }
+
+    // We are on an eligible route. If the user previously dismissed the bar on a
+    // *different* route, reset the dismissal so the bar shows again.
+    const currentRoute = getDeepestRouteName(
+      rootNavigationRef.getState() as
+        | { routes: { name: string; state?: unknown }[]; index: number }
+        | undefined
+    );
+    if (currentRoute && currentRoute !== lastShownRouteRef.current) {
+      lastShownRouteRef.current = currentRoute;
+      setDismissed(false);
+    }
+
     const data = await useActiveWorkoutPersistStore.getState().hydrate();
     setSnapshot(data);
   }, [authStatus]);
 
+  // Initial load
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
+  // Wait for nav to be ready then do the first real load
   useEffect(() => {
     if (rootNavigationRef.isReady()) return;
     const t = setInterval(() => {
@@ -61,6 +130,7 @@ export default function WorkoutResumeBar() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  // Re-evaluate on every navigation state change
   useEffect(() => {
     if (!rootNavigationRef.isReady()) return;
     const unsub = rootNavigationRef.addListener('state', () => {
@@ -69,15 +139,18 @@ export default function WorkoutResumeBar() {
     return unsub;
   }, [refresh]);
 
+  // ── Resume handler ───────────────────────────────────────────────────────────
   const onResume = useCallback(() => {
     if (!snapshot || !rootNavigationRef.isReady()) return;
     rootNavigationRef.navigate('SessionReels', {
       sessionTemplateId: snapshot.sessionTemplateId,
       session: snapshot.session,
+      workoutSessionId: snapshot.workoutSessionId,
       resumeFromStorage: true,
     });
   }, [snapshot]);
 
+  // ── Render guard ─────────────────────────────────────────────────────────────
   if (dismissed || !snapshot) return null;
 
   const title = snapshot.session?.title ?? 'Séance en cours';

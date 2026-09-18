@@ -115,7 +115,11 @@ export type RootStackParamList = {
   };
   SessionPreStart: { sessionId: string };
   /** Skip aperçu: sync gym → SessionReels or GymVerification */
-  SessionQuickStart: { sessionId: string };
+  SessionQuickStart: {
+    sessionId: string;
+    completionType?: 'normal' | 'rattrapage';
+    originalScheduledDate?: string;
+  };
   Warmup: { sessionTemplateId: string };
   GymVerification: { sessionId: string };
   SessionSummary: {
@@ -127,8 +131,11 @@ export type RootStackParamList = {
   RenewRequest: undefined;
   SessionReels: {
     sessionTemplateId: string;
+    workoutSessionId?: string;
     /** When true, screen restores index / logs / time from AsyncStorage (see activeWorkoutPersistStore). */
     resumeFromStorage?: boolean;
+    completionType?: 'normal' | 'rattrapage';
+    originalScheduledDate?: string;
     session: {
       _id: string;
       title: string;

@@ -338,7 +338,7 @@ export default function NutritionScreen() {
 
   const renderItem: ListRenderItem<NutritionItem> = useCallback(({ item, index }) => {
     if (item.type === 'progress') {
-      if (loading) return <View style={{ minHeight: 230, borderRadius: 24, backgroundColor: '#202A18', justifyContent: 'center', alignItems: 'center', gap: 12 }}><ActivityIndicator color={GOLD} /><Text style={{ color: '#B7C5A8' }}>Chargement de votre bilan…</Text></View>;
+      if (loading) return <View style={{ minHeight: 230, borderRadius: 24, backgroundColor: '#151518', justifyContent: 'center', alignItems: 'center', gap: 12 }}><ActivityIndicator color={GOLD} /><Text style={{ color: '#9CA3AF' }}>Chargement de votre bilan…</Text></View>;
       if (loadError) return <EmptyState title="Bilan indisponible" subtitle="Vos données n’ont pas pu être chargées." ctaLabel="Réessayer" onPress={onRefresh} />;
       return (
         <AnimatedSection delay={index * 70}>
@@ -427,7 +427,7 @@ export default function NutritionScreen() {
 
   if (!token) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#10170D' }}>
+      <View style={{ flex: 1, backgroundColor: '#000000' }}>
         <StatusBar style="light" />
         <View style={styles.centered}>
           <Text style={styles.loginMessage}>Vous devez être connecté</Text>
@@ -438,10 +438,10 @@ export default function NutritionScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#10170D' }}>
+    <View style={{ flex: 1, backgroundColor: '#000000' }}>
       <DrawerScreenContainer
         title="Nutrition"
-        backgroundColor="#10170D"
+        backgroundColor="#000000"
         titleColor={nutritionColors.text}
         headerBorderColor="rgba(255,255,255,0.08)"
         leftAction={isDrawerAvailable ? undefined : <View style={{ width: 44, height: 44 }} />}
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.3,
     textTransform: 'uppercase',
-    color: '#B7C5A8',
+    color: '#9CA3AF',
     fontWeight: '700',
   },
   rowBetween: {

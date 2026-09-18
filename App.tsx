@@ -90,6 +90,10 @@ const navTheme = (dark: boolean, bg: string) => ({
 
 function AppContent() {
   const { isDarkMode, colors } = useTheme();
+  // Activate screenshot / screen-recording protection app-wide.
+  // Android → FLAG_SECURE blocks all capture at OS level.
+  // iOS → strongest available protection via expo-screen-capture.
+  usePreventScreenCapture(true, { listen: true });
   return (
     <>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />

@@ -34,6 +34,7 @@ import WeekCalendarStrip from '../components/home/WeekCalendarStrip';
 import WeeklyValidationCard from '../components/home/WeeklyValidationCard';
 import { useTodayWorkout } from '../hooks/useTodayWorkout';
 import { workoutProgressStorage, type DayProgressStatus } from '../services/workoutProgressStorage';
+import { getWorkoutDayState, getDayStateBadge, type DayState } from '../utils/workoutSchedule';
 import { getLevelImageSource } from '../utils/levelAssets';
 import { getLocalDateKey, addDays, formatShortDateFr, formatWeekdayFr, getPlanWeekNumber, getPlanWeekDates } from '../utils/date';
 import { useTodayNutritionData } from '../hooks/useTodayNutritionData';
@@ -342,7 +343,7 @@ export default function HomeDashboardScreen() {
     data: weeklyValidation,
     loading: weeklyValidationLoading,
     refetch: refetchWeeklyValidation,
-  } = useWeeklyValidation(!!token && !!isAuthenticated, currentWeekDateKey);
+  } = useWeeklyValidation(!!token && !!isAuthenticated, currentWeekDateKey, displayWeekNumber);
 
   // Navigation boundary flags — prevent going outside the 5-week plan window
   const prevWeekDisabled = usePlanCalendar && activePlanWeek <= 1;
@@ -478,28 +479,48 @@ export default function HomeDashboardScreen() {
   );
 
   const activePlanWeekData = activePlan?.plan?.weeks?.find((w) => w.weekIndex === activePlanWeek - 1) ?? null;
-  const dayInfo: WeekDayInfo[] = weekDates.map((d, i) => {
+  const todayLocalKey = getLocalDateKey(new Date());
+
+  const dayInfo: (WeekDayInfo & { dayState: DayState })[] = weekDates.map((d, i) => {
     const localKey = getLocalDateKey(d);
     // Match by local date key — backend dateKey is a UTC calendar date which equals
     // the local calendar date for any timezone (getLocalDateKey reads local y/m/d).
     const planDay = weekPlan?.days?.find((pd) => (pd.dateKey ?? pd.date) === localKey);
     const sessions = planDay?.sessions ?? [];
     const firstSession = sessions[0];
-    const mappedDay = activePlanWeekData?.days?.find((day) => day.dayIndex === i);
+    const planStatus = planDay?.status;
+    const dow = d.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+    const calendarDayIndex = dow === 0 ? 6 : dow - 1; // 0 = Mon, 1 = Tue, ..., 6 = Sun
+    const mappedDay = activePlanWeekData?.days?.find((day) => day.date === localKey || day.dayIndex === calendarDayIndex);
     const mappedHasSession = !!mappedDay?.seance?.id;
     const mappedIsRest = mappedDay?.isRestDay ?? false;
-    const planStatus = planDay?.status;
+    const planHasSession = sessions.length > 0;
     const cleanTitle = normalizeSessionTitle(mappedDay?.seance?.name ?? firstSession?.title);
-    const isRest = mappedDay ? mappedIsRest : !firstSession?.sessionTemplateId;
-    const status = dayProgressMap[localKey] ?? 'none';
+    const isRest = planDay ? !planHasSession : (mappedDay ? mappedIsRest : !firstSession?.sessionTemplateId);
+    const localDone = dayProgressMap[localKey] === 'completed';
+    const isCompleted = localDone || planStatus === 'completed';
+
+    const dayState = getWorkoutDayState({
+      dateKey: localKey,
+      todayDateKey: todayLocalKey,
+      sessionTemplateId: mappedDay?.seance?.id ?? firstSession?.sessionTemplateId ?? null,
+      isRestDay: isRest,
+      isCompleted,
+      backendStatus: planStatus,
+      isRattrapageEligible: planStatus === 'rattrapage',
+      programWeek: displayWeekNumber,
+      currentProgramWeek: activePlanWeek,
+    });
+
     return {
       date: d,
       dayIndex: i,
       isRest,
       sessionTitle: cleanTitle ?? (mappedHasSession || firstSession?.sessionTemplateId ? 'Séance du jour' : undefined),
       sessionTemplateId: (mappedDay?.seance?.id ?? firstSession?.sessionTemplateId ?? undefined) || undefined,
-      status: planStatus === 'rattrapage' ? 'started' : status,
-      isRattrapage: planStatus === 'rattrapage',
+      status: dayState === 'completed' ? 'completed' : dayState === 'rattrapage' ? 'started' : (dayProgressMap[localKey] ?? 'none'),
+      isRattrapage: dayState === 'rattrapage',
+      dayState,
     };
   });
 
@@ -533,22 +554,61 @@ export default function HomeDashboardScreen() {
     : selectedSessionId;
   const canStartFromMainCard = selectedIsToday && !!startSessionId;
 
-  // Missed sessions from THIS plan week (past days with sessions not completed)
+  // Missed sessions from THIS plan week only (Requirement 4 & 5)
   const missedThisWeek = useMemo(() => {
     if (!weekPlan?.days) return [];
-    const todayLocalKey = getLocalDateKey(new Date());
-    return weekPlan.days.filter(
-      (d) => d.status === 'missed' && d.sessions.length > 0 && (d.dateKey ?? d.date ?? '') < todayLocalKey
+    // Only current program week allows rattrapage! (Requirement 4)
+    if (displayWeekNumber !== activePlanWeek) return [];
+    const todayLocalKeyStr = getLocalDateKey(new Date());
+    const missed = weekPlan.days.filter(
+      (d) =>
+        (d.status === 'missed' || d.status === 'rattrapage') &&
+        d.sessions.length > 0 &&
+        (d.dateKey ?? d.date ?? '') < todayLocalKeyStr
     );
-  }, [weekPlan]);
+    // Enforce chronological sort order (oldest first: Requirement 5)
+    const sorted = missed.sort((a, b) => {
+      const ka = a.dateKey ?? a.date ?? '';
+      const kb = b.dateKey ?? b.date ?? '';
+      return ka.localeCompare(kb);
+    });
+    return sorted;
+  }, [weekPlan, displayWeekNumber, activePlanWeek]);
 
-  const navigateToSessionQuickStart = useCallback((sessionId: string) => {
-    (navigation as any).navigate('SessionQuickStart', { sessionId });
-  }, [navigation]);
+  /**
+   * Deduplicated list for the "SÉANCES MANQUÉES CETTE SEMAINE" section.
+   * When the primary RATTRAPAGE card is already showing a missed session,
+   * that same session must NOT appear again in the list below.
+   * We compare by sessionTemplateId (string coercion for safety).
+   */
+  const missedThisWeekDeduped = useMemo(() => {
+    if (!todayWorkout.hasRattrapage || !todayWorkout.rattrapageSessionId) {
+      return missedThisWeek;
+    }
+    const activeId = String(todayWorkout.rattrapageSessionId);
+    return missedThisWeek.filter((day) => {
+      const firstSession = day.sessions[0];
+      if (!firstSession) return false;
+      // Exclude this day if its first session matches the primary rattrapage card
+      return String(firstSession.sessionTemplateId ?? '') !== activeId;
+    });
+  }, [missedThisWeek, todayWorkout.hasRattrapage, todayWorkout.rattrapageSessionId]);
+
+  const navigateToSessionQuickStart = useCallback(
+    (sessionId: string, completionType?: 'normal' | 'rattrapage', originalScheduledDate?: string) => {
+      (navigation as any).navigate('SessionQuickStart', { sessionId, completionType, originalScheduledDate });
+    },
+    [navigation]
+  );
 
   const handleStartOrPreviewSession = () => {
     if (!startSessionId) return;
-    navigateToSessionQuickStart(startSessionId);
+    const isRattrapage = todayWorkout.hasRattrapage && startSessionId === todayWorkout.rattrapageSessionId;
+    navigateToSessionQuickStart(
+      startSessionId,
+      isRattrapage ? 'rattrapage' : 'normal',
+      isRattrapage ? (todayWorkout.missed?.originalDate ?? undefined) : undefined
+    );
   };
 
   const handleStartRattrapage = useCallback(async () => {
@@ -559,7 +619,7 @@ export default function HomeDashboardScreen() {
       RATTRAPAGE_STORAGE_KEY,
       JSON.stringify({ completionType: 'rattrapage', originalScheduledDate: originalDate ?? null })
     );
-    navigateToSessionQuickStart(sid);
+    navigateToSessionQuickStart(sid, 'rattrapage', originalDate ?? undefined);
   }, [todayWorkout.rattrapageSessionId, todayWorkout.missed?.originalDate, RATTRAPAGE_STORAGE_KEY, navigateToSessionQuickStart]);
 
   const handleStartRattrapageForDay = useCallback(async (sessionId: string, originalDate: string) => {
@@ -567,7 +627,7 @@ export default function HomeDashboardScreen() {
       RATTRAPAGE_STORAGE_KEY,
       JSON.stringify({ completionType: 'rattrapage', originalScheduledDate: originalDate })
     );
-    navigateToSessionQuickStart(sessionId);
+    navigateToSessionQuickStart(sessionId, 'rattrapage', originalDate);
   }, [RATTRAPAGE_STORAGE_KEY, navigateToSessionQuickStart]);
 
   const handleOpenNutrition = () => {
@@ -739,23 +799,16 @@ export default function HomeDashboardScreen() {
               {selectedDayInfo?.sessionTemplateId ? (
                 <View style={[
                   styles.sessionStatusBadge,
-                  selectedDayInfo.status === 'completed' && styles.sessionStatusDone,
-                  selectedDayInfo.status === 'started' && styles.sessionStatusStarted,
-                  selectedDayInfo.isRattrapage && styles.sessionStatusRattrapage,
+                  selectedDayInfo.dayState === 'completed' && styles.sessionStatusDone,
+                  selectedDayInfo.dayState === 'today' && styles.sessionStatusStarted,
+                  selectedDayInfo.dayState === 'rattrapage' && styles.sessionStatusRattrapage,
+                  selectedDayInfo.dayState === 'missed' && { backgroundColor: 'rgba(248, 113, 113, 0.12)', borderColor: 'rgba(248, 113, 113, 0.3)' },
                 ]}>
                   <Text style={[
                     styles.sessionStatusText,
-                    selectedDayInfo.status === 'completed' && { color: '#4ADE80' },
-                    selectedDayInfo.status === 'started' && { color: '#93C5FD' },
-                    selectedDayInfo.isRattrapage && { color: '#FDBA74' },
+                    { color: getDayStateBadge(selectedDayInfo.dayState).color },
                   ]}>
-                    {selectedDayInfo.isRattrapage
-                      ? '↺ Rattrapage'
-                      : selectedDayInfo.status === 'completed'
-                      ? '✓ Terminée'
-                      : selectedDayInfo.status === 'started'
-                        ? '● En cours'
-                        : '○ À faire'}
+                    {getDayStateBadge(selectedDayInfo.dayState).label}
                   </Text>
                 </View>
               ) : null}
@@ -851,6 +904,8 @@ export default function HomeDashboardScreen() {
               )}
               selectedDate={selectedDate}
               onSelectDay={(d) => setSelectedDate(d)}
+              programWeek={displayWeekNumber}
+              currentProgramWeek={activePlanWeek}
             />
           </View>
 
@@ -907,14 +962,14 @@ export default function HomeDashboardScreen() {
             </View>
           )}
 
-          {/* ── Missed sessions this week ────────────────────────────── */}
-          {missedThisWeek.length > 0 && (
+          {/* ── Missed sessions this week (deduplicated — same session as RATTRAPAGE card is excluded) ── */}
+          {missedThisWeekDeduped.length > 0 && (
             <View style={styles.missedWeekCard}>
               <View style={styles.missedWeekHeader}>
                 <Ionicons name="alert-circle-outline" size={14} color="#F87171" />
                 <Text style={styles.missedWeekTitle}>SÉANCES MANQUÉES CETTE SEMAINE</Text>
               </View>
-              {missedThisWeek.map((day) => {
+              {missedThisWeekDeduped.map((day) => {
                 const firstSession = day.sessions[0];
                 const dateLabel = (() => {
                   try {
@@ -1016,6 +1071,7 @@ export default function HomeDashboardScreen() {
           <WeeklyValidationCard
             loading={weeklyValidationLoading}
             data={weeklyValidation}
+            scheduledSessionsCount={dayInfo.filter((d) => !d.isRest && (d.sessionTemplateId || d.sessionTitle)).length}
           />
 
           {/* ── Level media + instructions (always visible; placeholders if empty) ─ */}

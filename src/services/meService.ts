@@ -93,6 +93,10 @@ export interface MissedSessionInfo {
   originalDate: string;
   /** English day name of the missed scheduled session, e.g. "Monday" */
   dayName: string;
+  weekNumber?: number;
+  sessionOrder?: number;
+  recommendedAt?: string | Date;
+  dueAt?: string | Date;
 }
 
 export interface TodayResponse {
@@ -305,11 +309,13 @@ export interface WeeklyValidationDay {
   isRestDay?: boolean;
   isValidated: boolean;
   isToday: boolean;
+  status?: WeekDayStatus;
 }
 
 export interface WeeklyValidationResponse {
   weekStart: string;
   weekEnd: string;
+  weekNumber?: number;
   validatedDaysCount: number;
   completedWorkoutsCount?: number;
   targetWorkoutSessions?: number;
@@ -355,9 +361,12 @@ export const meService = {
     return res.data;
   },
 
-  getWeeklyValidation: async (date?: string): Promise<WeeklyValidationResponse> => {
-    const params = date ? `?date=${encodeURIComponent(date)}` : '';
-    const res = await api.get<WeeklyValidationResponse>(`/me/weekly-validation${params}`);
+  getWeeklyValidation: async (date?: string, weekNumber?: number): Promise<WeeklyValidationResponse> => {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (typeof weekNumber === 'number') params.append('weekNumber', String(weekNumber));
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await api.get<WeeklyValidationResponse>(`/me/weekly-validation${qs}`);
     return res.data;
   },
 

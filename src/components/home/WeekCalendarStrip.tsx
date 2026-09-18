@@ -1,16 +1,13 @@
 import { BRAND_YELLOW } from '../../constants/brand';
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import type { WeekDayStatus, WeekPlanDay } from '../../services/meService';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import type { WeekPlanDay } from '../../services/meService';
 import { getLocalDateKey } from '../../utils/date';
-import { getWorkoutStatusForDate } from '../../hooks/useTodayWorkout';
+import { getWorkoutDayState, type DayState } from '../../utils/workoutSchedule';
 
 const GOLD = BRAND_YELLOW;
-const SCREEN_W = Dimensions.get('window').width;
-// 16px horizontal padding on each side from scrollContent + 14px card padding
 const STRIP_H_PAD = 14;
 const CELL_GAP = 6;
-const CELL_W = Math.floor((SCREEN_W - 32 - STRIP_H_PAD * 2 - CELL_GAP * 6) / 7);
 
 const FR_DAY_1 = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];   // Sun=0
 const FR_DAY_3 = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
@@ -21,6 +18,8 @@ interface Props {
   localCompleted?: Record<string, boolean>;
   selectedDate: Date | null;
   onSelectDay: (date: Date) => void;
+  programWeek?: number;
+  currentProgramWeek?: number;
 }
 
 function findPlanDayForDate(date: Date, planDays?: WeekPlanDay[] | null): WeekPlanDay | undefined {
@@ -29,40 +28,64 @@ function findPlanDayForDate(date: Date, planDays?: WeekPlanDay[] | null): WeekPl
   return planDays.find((pd) => (pd.dateKey ?? pd.date) === key);
 }
 
-const STATUS_DOT: Record<WeekDayStatus, { color: string; char: string }> = {
-  completed: { color: '#4ADE80', char: '✓' },
-  pending:   { color: GOLD,      char: '●' },
-  missed:    { color: '#F87171', char: '!' },
-  rest:      { color: 'rgba(255,255,255,0.18)', char: '·' },
-  rattrapage:{ color: '#FB923C', char: '↺' },
+const STATUS_DOT: Record<DayState, { color: string; char: string }> = {
+  completed:  { color: '#4ADE80', char: '✓' },
+  today:      { color: GOLD,      char: '●' },
+  future:     { color: 'rgba(255,255,255,0.4)', char: '○' },
+  scheduled:  { color: 'rgba(255,255,255,0.4)', char: '○' },
+  missed:     { color: '#F87171', char: '!' },
+  rest:       { color: 'rgba(255,255,255,0.18)', char: '·' },
+  rattrapage: { color: '#FB923C', char: '↺' },
 };
 
-export default function WeekCalendarStrip({ dates, planDays, localCompleted, selectedDate, onSelectDay }: Props) {
+export default function WeekCalendarStrip({
+  dates,
+  planDays,
+  localCompleted,
+  selectedDate,
+  onSelectDay,
+  programWeek,
+  currentProgramWeek,
+}: Props) {
   const todayKey = getLocalDateKey(new Date());
 
   const items = useMemo(() => dates.map((d) => {
     const planDay = findPlanDayForDate(d, planDays);
     const dateKey = getLocalDateKey(d);
     const localDone = !!localCompleted?.[dateKey];
-    const status = getWorkoutStatusForDate({ dateKey, todayKey, planDay, localCompleted: localDone });
+    const firstSession = planDay?.sessions?.[0];
+    const hasAnySession = (planDay?.sessions?.length ?? 0) > 0;
+
+    const dayState = getWorkoutDayState({
+      dateKey,
+      todayDateKey: todayKey,
+      sessionTemplateId: firstSession?.sessionTemplateId ?? null,
+      isRestDay: planDay ? !hasAnySession : false,
+      isCompleted: localDone || planDay?.status === 'completed',
+      backendStatus: planDay?.status,
+      isRattrapageEligible: planDay?.status === 'rattrapage',
+      programWeek,
+      currentProgramWeek,
+    });
+
     return {
       date: d,
       dateKey,
       letter: FR_DAY_1[d.getDay()],
       abbr: FR_DAY_3[d.getDay()],
       dayNum: d.getDate(),
-      status,
+      dayState,
       isToday: dateKey === todayKey,
       isFuture: dateKey > todayKey,
     };
-  }), [dates, planDays, localCompleted, todayKey]);
+  }), [dates, planDays, localCompleted, todayKey, programWeek, currentProgramWeek]);
 
   return (
     <View style={styles.row}>
       {items.map((it) => {
         const selected = !!selectedDate && getLocalDateKey(selectedDate) === it.dateKey;
-        const dot = STATUS_DOT[it.status];
-        const isRest = it.status === 'rest';
+        const dot = STATUS_DOT[it.dayState] ?? STATUS_DOT.future;
+        const isRest = it.dayState === 'rest';
 
         return (
           <TouchableOpacity
@@ -75,7 +98,7 @@ export default function WeekCalendarStrip({ dates, planDays, localCompleted, sel
               selected && styles.cellSelected,
             ]}
           >
-            {/* Weekday letter */}
+            {/* Weekday abbreviation */}
             <Text style={[
               styles.letter,
               selected && styles.letterSelected,
@@ -119,7 +142,8 @@ const styles = StyleSheet.create({
     gap: CELL_GAP,
   },
   cell: {
-    width: CELL_W,
+    flex: 1,
+    minWidth: 40,
     alignItems: 'center',
     paddingVertical: 10,
     borderRadius: 14,
@@ -138,40 +162,55 @@ const styles = StyleSheet.create({
     shadowColor: GOLD,
     shadowOpacity: 0.35,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 6,
+    shadowRadius: 6,
+    elevation: 4,
   },
   letter: {
-    fontSize: 9,
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 0.4,
+  },
+  letterToday: {
+    color: GOLD,
     fontWeight: '800',
-    letterSpacing: 0.5,
-    color: 'rgba(255,255,255,0.4)',
-    textTransform: 'uppercase',
   },
-  letterSelected: { color: '#000' },
-  letterToday:   { color: GOLD },
+  letterSelected: {
+    color: '#000',
+    fontWeight: '800',
+  },
   num: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 20,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontVariant: ['tabular-nums'],
   },
-  numSelected: { color: '#000' },
-  numToday:    { color: '#fff' },
+  numToday: {
+    color: GOLD,
+    fontWeight: '900',
+  },
+  numSelected: {
+    color: '#000',
+    fontWeight: '900',
+  },
   dotWrap: {
     width: 20,
-    height: 20,
-    borderRadius: 10,
+    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  dotWrapSelected: { backgroundColor: 'rgba(0,0,0,0.15)' },
-  dotWrapToday: { backgroundColor: 'rgba(212,175,55,0.15)' },
-  dotWrapRest: { backgroundColor: 'transparent' },
+  dotWrapToday: {
+    // subtle styling for today's dot container
+  },
+  dotWrapSelected: {
+    // dot container when day cell is selected
+  },
+  dotWrapRest: {
+    opacity: 0.5,
+  },
   dotChar: {
     fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 13,
+    fontWeight: '800',
+    lineHeight: 14,
   },
 });

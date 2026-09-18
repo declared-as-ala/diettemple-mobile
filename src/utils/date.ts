@@ -55,26 +55,63 @@ export function formatShortDateFr(d: Date): string {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-/** Plan week number (1..durationWeeks) anchored on planStartDate (day 0 = start date). */
-export function getPlanWeekNumber(planStartDate: Date, d: Date, durationWeeks: number): number {
+/** Helper to compute program week 1 Sunday and week 2 Monday in local time. */
+export function getProgramWeekBoundaries(planStartDate: Date) {
   const anchor = new Date(planStartDate);
   anchor.setHours(0, 0, 0, 0);
+  const startDow = anchor.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const daysUntilSunday = (7 - (startDow === 0 ? 7 : startDow));
+  const week1Sunday = addDays(anchor, daysUntilSunday);
+  const week2Monday = addDays(week1Sunday, 1);
+  const week1DaysCount = daysUntilSunday + 1;
+  return { anchor, week1Sunday, week2Monday, week1DaysCount };
+}
+
+/**
+ * Plan week number (1..durationWeeks).
+ * Week 1 = planStartDate through following Sunday.
+ * Weeks 2..N = Monday through Sunday (7 days each).
+ */
+export function getPlanWeekNumber(planStartDate: Date, d: Date, durationWeeks: number): number {
+  const { anchor, week1Sunday, week2Monday } = getProgramWeekBoundaries(planStartDate);
   const day = new Date(d);
   day.setHours(0, 0, 0, 0);
-  const diffMs = day.getTime() - anchor.getTime();
+
+  if (day.getTime() < anchor.getTime()) {
+    return 1;
+  }
+  if (day.getTime() <= week1Sunday.getTime()) {
+    return 1;
+  }
+
+  const diffMs = day.getTime() - week2Monday.getTime();
   const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-  const week = Math.floor(diffDays / 7) + 1;
+  const weekOffset = Math.floor(diffDays / 7);
+  const week = 2 + weekOffset;
   return Math.min(durationWeeks, Math.max(1, week));
 }
 
-/** The 7 local dates for plan week N (1-based), anchored to planStartDate. */
+/**
+ * The local calendar dates for plan week N (1-based).
+ * Week 1: ONLY dates from planStartDate through following Sunday (e.g. Fri, Sat, Sun = 3 days).
+ * Weeks 2..N: 7 dates (Monday through Sunday).
+ */
 export function getPlanWeekDates(planStartDate: Date, weekNumber: number): Date[] {
-  const anchor = new Date(planStartDate);
-  anchor.setHours(0, 0, 0, 0);
-  const weekStart = addDays(anchor, (weekNumber - 1) * 7);
+  const { anchor, week1Sunday, week2Monday, week1DaysCount } = getProgramWeekBoundaries(planStartDate);
+  if (weekNumber <= 1) {
+    const dates: Date[] = [];
+    for (let i = 0; i < week1DaysCount; i++) {
+      dates.push(addDays(anchor, i));
+    }
+    return dates;
+  }
+
+  const offsetWeeks = weekNumber - 2;
+  const weekStart = addDays(week2Monday, offsetWeeks * 7);
   const dates: Date[] = [];
   for (let i = 0; i < 7; i++) {
     dates.push(addDays(weekStart, i));
   }
   return dates;
 }
+

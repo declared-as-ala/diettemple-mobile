@@ -8,7 +8,7 @@
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/splash.png",
       "backgroundColor": "#000000",
       "resizeMode": "contain"
     },
@@ -29,6 +29,10 @@
     "android": {
       "package": "com.diettemple.app",
       "versionCode": 2,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
@@ -45,6 +49,7 @@
     },
     "plugins": [
       "expo-secure-store",
+      "expo-screen-capture",
       "./plugins/withRemoveBackgroundAudio",
       [
         "expo-video",

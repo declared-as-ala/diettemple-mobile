@@ -13,6 +13,7 @@ import type { NutritionDayData } from '../store/nutritionStore';
 
 /** Defer nutrition fetch on first mount to avoid startup crash (safe mode). */
 const NUTRITION_FETCH_DEFER_MS = 400;
+const FOCUS_REFETCH_MIN_INTERVAL_MS = 30000; // 30s throttle on screen refocus
 
 export function useTodayNutritionData(enabled: boolean) {
   const todayDateKey = getLocalDateKey(new Date());
@@ -23,15 +24,29 @@ export function useTodayNutritionData(enabled: boolean) {
   const [isFetching, setIsFetching] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isFetchingRef = useRef(false);
+  const lastFetchedAtRef = useRef<number>(0);
   const deferDone = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     if (!enabled) return;
+    if (isFetchingRef.current) return;
+
+    // Avoid duplicate network requests within throttle window unless forced
+    const now = Date.now();
+    if (!force && now - lastFetchedAtRef.current < FOCUS_REFETCH_MIN_INTERVAL_MS && lastFetchedAtRef.current > 0) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     setIsFetching(true);
     setError(null);
     startupSteps.nutritionFetch();
+
     try {
       const res = await meService.getNutritionToday(todayDateKey);
+      lastFetchedAtRef.current = Date.now();
       setNutritionForDate(todayDateKey, {
         targets: res?.targets ?? null,
         log: res?.log ?? null,
@@ -41,21 +56,18 @@ export function useTodayNutritionData(enabled: boolean) {
       setError((e as Error)?.message ?? 'Erreur de chargement');
       startupSteps.nutritionFetchDone();
     } finally {
+      isFetchingRef.current = false;
       setIsFetching(false);
       setAttempted(true);
     }
   }, [enabled, todayDateKey, setNutritionForDate]);
 
-  // True only if we have data with actual targets (not null-placeholder from /me/today)
-  const hasRealData = data != null && data.targets != null;
-
-  // Safe startup: defer first fetch so home renders before network.
+  // Safe startup: trigger initial load once on mount (deferred briefly)
   useEffect(() => {
     if (!enabled) return;
-    if (hasRealData) {
-      setAttempted(true);
-      return;
-    }
+    // If we already have data or already attempted, don't trigger again
+    if (attempted || data !== undefined) return;
+
     if (!deferDone.current) {
       deferDone.current = true;
       const t = setTimeout(() => {
@@ -64,22 +76,26 @@ export function useTodayNutritionData(enabled: boolean) {
       return () => clearTimeout(t);
     }
     load();
-  }, [enabled, todayDateKey, load, hasRealData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, todayDateKey]);
 
-  // On focus (e.g. back from Nutrition): ensure we have latest for today.
+  // On focus (e.g. back from Nutrition): throttle refocus fetch
   useFocusEffect(
     useCallback(() => {
       if (!enabled) return;
-      if (!hasRealData && !isFetching) load();
-    }, [enabled, load, hasRealData, isFetching])
+      const now = Date.now();
+      if (now - lastFetchedAtRef.current > FOCUS_REFETCH_MIN_INTERVAL_MS) {
+        load();
+      }
+    }, [enabled, load])
   );
 
-  const loading = (!hasRealData && (isFetching || !attempted));
+  const loading = isFetching || (!attempted && data === undefined);
   return {
     data: data ?? undefined,
     loading,
     error,
     todayDateKey,
-    refetch: load,
+    refetch: () => load(true),
   };
 }

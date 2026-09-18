@@ -13,9 +13,13 @@ export interface GalleryDayEntry {
   beforeUri?: string;
   afterUri?: string;
   notes?: string;
+  staffConsentGiven?: boolean;
+  consentGivenAt?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+const GLOBAL_CONSENT_KEY = '@diet_gallery_staff_consent';
 
 function storageKey(dateKey: string): string {
   return `${PREFIX}${dateKey}`;
@@ -36,19 +40,37 @@ export const galleryStorage = {
     }
   },
 
-  async set(dateKey: string, entry: Partial<GalleryDayEntry> & { beforeUri?: string; afterUri?: string; notes?: string }): Promise<GalleryDayEntry> {
+  async set(dateKey: string, entry: Partial<GalleryDayEntry> & { beforeUri?: string; afterUri?: string; notes?: string; staffConsentGiven?: boolean }): Promise<GalleryDayEntry> {
     const now = new Date().toISOString();
     const existing = await galleryStorage.get(dateKey);
     const created = existing?.createdAt ?? now;
+    const staffConsent = entry.staffConsentGiven !== undefined ? entry.staffConsentGiven : existing?.staffConsentGiven;
     const updated: GalleryDayEntry = {
       beforeUri: entry.beforeUri ?? existing?.beforeUri,
       afterUri: entry.afterUri ?? existing?.afterUri,
       notes: entry.notes !== undefined ? entry.notes : existing?.notes,
+      staffConsentGiven: staffConsent,
+      consentGivenAt: staffConsent ? (existing?.consentGivenAt ?? now) : undefined,
       createdAt: created,
       updatedAt: now,
     };
     await AsyncStorage.setItem(storageKey(dateKey), JSON.stringify(updated));
     return updated;
+  },
+
+  async getGlobalConsent(): Promise<boolean> {
+    try {
+      const v = await AsyncStorage.getItem(GLOBAL_CONSENT_KEY);
+      return v === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  async setGlobalConsent(consented: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(GLOBAL_CONSENT_KEY, consented ? 'true' : 'false');
+    } catch {}
   },
 
   /** Persist a URI (from picker) into the gallery folder and return the persistent URI. */

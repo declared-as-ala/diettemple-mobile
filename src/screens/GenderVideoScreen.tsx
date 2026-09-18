@@ -1,5 +1,5 @@
 import { BRAND_YELLOW } from '../constants/brand';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,14 +30,6 @@ const { width: SW, height: SH } = Dimensions.get('window');
 const GOLD     = BRAND_YELLOW;
 const GOLD_DIM = 'rgba(212,175,55,0.15)';
 
-const GOAL_OPTIONS = [
-  { value: 'fat-loss',     label: 'Perte de masse grasse' },
-  { value: 'muscle',       label: 'Prise de muscle' },
-  { value: 'recomp',       label: 'Recomposition corporelle' },
-  { value: 'performance',  label: 'Performance sportive' },
-  { value: 'wellness',     label: 'Santé & longévité' },
-];
-
 export default function GenderVideoScreen() {
   const navigation = useNavigation<Nav>();
   const route      = useRoute<Route>();
@@ -57,23 +49,42 @@ export default function GenderVideoScreen() {
   const [videoTitle,  setVideoTitle]  = useState('');
   const [videoDesc,   setVideoDesc]   = useState('');
   const [videoReady,  setVideoReady]  = useState(false);
+  const [loadError,   setLoadError]   = useState(false);
   const [contactPhone, setContactPhone] = useState('+216 50 123 456');
 
+  // Direct MinIO static URL fallback in case stream endpoint fails on mobile
+  const directFallbackRef = useRef<string | null>(null);
+
   useEffect(() => {
-    const base     = getApiBaseUrl();
-    const apiHost  = base.replace(/\/api\/?$/, '');
+    let isMounted = true;
+    const base = getApiBaseUrl();
+    const apiHost = base.replace(/\/api\/?$/, '');
+
+    setVideoReady(false);
+    setLoadError(false);
 
     // Fetch video config
     fetch(`${base}/landing/videos`)
       .then(r => r.ok ? r.json() : null)
       .catch(() => null)
       .then(data => {
+        if (!isMounted) return;
         const cfg = data?.[gender];
-        if (cfg?.streamUrl) setVideoUrl(`${apiHost}${cfg.streamUrl}`);
-        else if (cfg?.videoUrl) setVideoUrl(cfg.videoUrl);
         if (cfg?.title)       setVideoTitle(cfg.title);
         if (cfg?.description) setVideoDesc(cfg.description);
-        setVideoReady(true);
+
+        const streamFull = cfg?.streamUrl ? `${apiHost}${cfg.streamUrl}` : null;
+        const directFull = cfg?.videoUrl ? (cfg.videoUrl.startsWith('http') ? cfg.videoUrl : `${apiHost}${cfg.videoUrl.startsWith('/') ? '' : '/'}${cfg.videoUrl}`) : null;
+
+        directFallbackRef.current = directFull;
+
+        // Prefer streamUrl or directFull
+        const chosenUrl = streamFull || directFull || '';
+        if (chosenUrl) {
+          setVideoUrl(chosenUrl);
+        } else {
+          setVideoReady(true);
+        }
       });
 
     // Fetch contact phone from settings
@@ -81,8 +92,13 @@ export default function GenderVideoScreen() {
       .then(r => r.ok ? r.json() : null)
       .catch(() => null)
       .then(data => {
+        if (!isMounted) return;
         if (data?.contactPhone) setContactPhone(data.contactPhone);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [gender]);
 
   const handleCallPress = () => {
@@ -92,21 +108,53 @@ export default function GenderVideoScreen() {
     });
   };
 
-  const player = useVideoPlayer(videoUrl || null, p => {
-    p.loop    = true;
-    p.muted   = false;
-    if (videoUrl) p.play();
+  const player = useVideoPlayer(videoUrl ? { uri: videoUrl } : null, p => {
+    p.loop = true;
+    p.muted = false;
+    p.staysActiveInBackground = false;
   });
 
   useEffect(() => {
-    if (!videoUrl) return;
-    player.replace(videoUrl);
-    player.play();
-  }, [videoUrl]);
+    if (!player) return;
+
+    const sub = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'readyToPlay') {
+        setVideoReady(true);
+        setLoadError(false);
+        try {
+          player.play();
+        } catch {}
+      } else if (status === 'error') {
+        console.warn('[GenderVideoScreen] Video player error:', error);
+        // If stream failed and we have direct MinIO URL fallback, try direct URL
+        if (directFallbackRef.current && videoUrl !== directFallbackRef.current) {
+          console.log('[GenderVideoScreen] Retrying with direct static video URL:', directFallbackRef.current);
+          setVideoUrl(directFallbackRef.current);
+        } else {
+          setVideoReady(true);
+          setLoadError(true);
+        }
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [player, videoUrl]);
+
+  useEffect(() => {
+    if (!videoUrl || !player) return;
+    try {
+      player.replace({ uri: videoUrl });
+      player.play();
+    } catch (e) {
+      console.warn('[GenderVideoScreen] player.replace error:', e);
+    }
+  }, [videoUrl, player]);
 
   // ── Form (step 1) ──────────────────────────────────────────────────────
   const [step,       setStep]       = useState<'video' | 'form' | 'success'>('video');
-  const [form,       setForm]       = useState({ name: '', email: '', phone: '', goal: 'fat-loss' });
+  const [form,       setForm]       = useState({ name: '', email: '', phone: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState('');
 
@@ -179,6 +227,27 @@ export default function GenderVideoScreen() {
                   <View style={styles.playerSpinner}>
                     <ActivityIndicator color={GOLD} size="large" />
                     <Text style={styles.playerSpinnerText}>Chargement de la vidéo…</Text>
+                  </View>
+                ) : loadError ? (
+                  <View style={styles.playerSpinner}>
+                    <Ionicons name="alert-circle-outline" size={38} color="rgba(255,255,255,0.4)" />
+                    <Text style={styles.playerSpinnerText}>Impossible de charger la vidéo</Text>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={() => {
+                        setLoadError(false);
+                        setVideoReady(false);
+                        const target = directFallbackRef.current || videoUrl;
+                        if (target && player) {
+                          setVideoUrl(target);
+                          player.replace({ uri: target });
+                          player.play();
+                        }
+                      }}
+                    >
+                      <Ionicons name="refresh" size={14} color={GOLD} />
+                      <Text style={styles.retryBtnText}>Réessayer</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : videoUrl ? (
                   <VideoView
@@ -263,24 +332,6 @@ export default function GenderVideoScreen() {
                   value={form.email}
                   onChangeText={v => setForm({ ...form, email: v })}
                 />
-              </View>
-              <View style={styles.fieldWrap}>
-                <Text style={styles.fieldLabel}>Objectif principal</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                  <View style={styles.goalRow}>
-                    {GOAL_OPTIONS.map(g => (
-                      <TouchableOpacity
-                        key={g.value}
-                        style={[styles.goalChip, form.goal === g.value && styles.goalChipActive]}
-                        onPress={() => setForm({ ...form, goal: g.value })}
-                      >
-                        <Text style={[styles.goalChipText, form.goal === g.value && styles.goalChipTextActive]}>
-                          {g.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
               </View>
             </View>
 
@@ -422,6 +473,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(212,175,55,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+    marginTop: 4,
+  },
+  retryBtnText: {
+    color: GOLD,
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
   playerFoot: {
     padding: 18,
     gap: 16,
@@ -508,18 +576,6 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  goalRow: { flexDirection: 'row', gap: 8 },
-  goalChip: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  goalChipActive:     { borderColor: GOLD, backgroundColor: GOLD_DIM },
-  goalChipText:       { color: 'rgba(255,255,255,0.5)', fontSize: 11.5, fontWeight: '600' },
-  goalChipTextActive: { color: GOLD },
 
   primaryBtn: {
     backgroundColor: GOLD,

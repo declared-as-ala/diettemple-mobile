@@ -73,7 +73,6 @@ export default function SignupScreen() {
             <MaterialCommunityIcons name="human-male" size={52} color={GOLD} />
 
             <Text style={styles.cardLabel}>HOMME</Text>
-            <Text style={styles.cardSub}>Force · Muscle</Text>
 
             <LinearGradient
               colors={[GOLD, '#b8922a']}
@@ -104,7 +103,6 @@ export default function SignupScreen() {
             <MaterialCommunityIcons name="human-female" size={52} color={GOLD} />
 
             <Text style={styles.cardLabel}>FEMME</Text>
-            <Text style={styles.cardSub}>Galbe · Vitalité</Text>
 
             <LinearGradient
               colors={[GOLD, '#b8922a']}
@@ -200,12 +198,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1.8,
-  },
-
-  cardSub: {
-    color: 'rgba(255,221,127,0.80)',
-    fontSize: 9.5,
-    marginBottom: 4,
   },
 
   cardCta: {

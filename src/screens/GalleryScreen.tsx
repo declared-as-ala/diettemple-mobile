@@ -238,7 +238,16 @@ export default function GalleryScreen() {
             <View style={[styles.hintBanner, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
               <Ionicons name="git-compare-outline" size={16} color={ACCENT} />
               <Text style={[styles.hintBannerText, { color: colors.textSecondary }]}>
-                Appuie sur 2 photos du calendrier pour les comparer
+                Évolution débloquée (après 2 cycles) : sélectionne 2 dates pour Fusionner et voir ta transformation.
+              </Text>
+            </View>
+          )}
+
+          {selectedDates.length === 0 && datesWithPhotos.length < 2 && (
+            <View style={[styles.hintBanner, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+              <Ionicons name="time-outline" size={16} color={ACCENT} />
+              <Text style={[styles.hintBannerText, { color: colors.textSecondary }]}>
+                La galerie et le bouton Fusionner se débloquent après 2 cycles / prises de photos.
               </Text>
             </View>
           )}

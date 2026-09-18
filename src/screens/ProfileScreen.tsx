@@ -83,10 +83,18 @@ interface StatPillProps {
   label: string;
   value: string;
   unit?: string;
-  onPress: () => void;
+  onPress?: () => void;
 }
 
 function StatPill({ label, value, unit, onPress }: StatPillProps) {
+  if (!onPress) {
+    return (
+      <View style={styles.statPill}>
+        <Text style={styles.statValue}>{value || '—'}{unit && value ? <Text style={styles.statUnit}>{unit}</Text> : null}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+    );
+  }
   return (
     <TouchableOpacity style={styles.statPill} onPress={onPress} activeOpacity={0.75}>
       <Text style={styles.statValue}>{value || '—'}{unit && value ? <Text style={styles.statUnit}>{unit}</Text> : null}</Text>
@@ -335,32 +343,22 @@ export default function ProfileScreen() {
             )}
           </LinearGradient>
 
-          {/* ── Stats row ────────────────────────────────────────────── */}
+          {/* ── Stats row (Display only for body stats, weight removed per client requirements) ───────────────────────── */}
           <View style={styles.statsRow}>
-            <StatPill
-              label="Poids"
-              value={profile.poids ? String(profile.poids) : ''}
-              unit="kg"
-              onPress={() => handleEditStat('poids')}
-            />
-            <View style={styles.statDivider} />
             <StatPill
               label="Taille"
               value={profile.taille ? String(profile.taille) : ''}
               unit="cm"
-              onPress={() => handleEditStat('taille')}
             />
             <View style={styles.statDivider} />
             <StatPill
               label="Âge"
               value={profile.age ? String(profile.age) : ''}
-              onPress={() => handleEditStat('age')}
             />
             <View style={styles.statDivider} />
             <StatPill
               label="Sexe"
               value={getSexeLabel(profile.sexe)}
-              onPress={() => handleEditStat('sexe')}
             />
           </View>
 

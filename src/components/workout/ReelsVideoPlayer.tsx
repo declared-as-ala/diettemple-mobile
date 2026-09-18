@@ -34,6 +34,8 @@ export interface ReelsVideoPlayerProps {
   /** Seek after first load (e.g. resume). */
   initialPositionSeconds?: number;
   onPipActiveChange?: (active: boolean) => void;
+  /** Fired when playback finishes a loop or reaches the end of the video. */
+  onLoopComplete?: () => void;
 }
 
 export type ReelsVideoPlayerHandle = {
@@ -59,11 +61,13 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
     resolvedUri: resolvedUriProp,
     initialPositionSeconds = 0,
     onPipActiveChange,
+    onLoopComplete,
   },
   ref
 ) {
   const viewRef = useRef<VideoView>(null);
   const appliedInitialSeek = useRef(false);
+  const previousTimeRef = useRef(0);
   const isYoutube = videoSource === 'youtube' || isYoutubeUrl(videoUrl);
   const uri = resolvedUriProp ?? resolveVideoUrl(videoUrl ?? undefined);
 
@@ -104,8 +108,14 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
 
   useEffect(() => {
     if (!player || isYoutube) return;
+    previousTimeRef.current = 0;
     const onTime = () => {
       const sec = player.currentTime;
+      // Loop-around detection: if time was > 1.5s and suddenly wraps back to near 0, loop finished
+      if (previousTimeRef.current > 1.5 && sec < 0.8) {
+        onLoopComplete?.();
+      }
+      previousTimeRef.current = sec;
       onTimeUpdateSeconds?.(sec);
       onPlaybackStatusUpdate?.({
         positionMillis: Math.round(sec * 1000),
@@ -114,6 +124,12 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
       });
     };
     const subTime = player.addListener('timeUpdate', onTime);
+    let subEnd: any;
+    try {
+      subEnd = player.addListener('playToEnd', () => {
+        onLoopComplete?.();
+      });
+    } catch {}
     const subPlaying = player.addListener('playingChange', () => {
       onPlaybackStatusUpdate?.({
         positionMillis: Math.round(player.currentTime * 1000),
@@ -124,8 +140,9 @@ const ReelsVideoPlayer = forwardRef<ReelsVideoPlayerHandle, ReelsVideoPlayerProp
     return () => {
       subTime.remove();
       subPlaying.remove();
+      subEnd?.remove?.();
     };
-  }, [player, isYoutube, onPlaybackStatusUpdate, onTimeUpdateSeconds]);
+  }, [player, isYoutube, onPlaybackStatusUpdate, onTimeUpdateSeconds, onLoopComplete]);
 
   useEffect(() => {
     if (!player || isYoutube || appliedInitialSeek.current) return;

@@ -8,6 +8,7 @@ import type { WeeklyValidationResponse } from '../../services/meService';
 interface Props {
   loading: boolean;
   data: WeeklyValidationResponse | null;
+  scheduledSessionsCount?: number;
 }
 
 function getTodayHint(today: WeeklyValidationResponse['today'] | undefined): string {
@@ -27,7 +28,7 @@ function getTodayHint(today: WeeklyValidationResponse['today'] | undefined): str
   return 'Termine ta séance et ton objectif nutrition pour valider la journée.';
 }
 
-export default function WeeklyValidationCard({ loading, data }: Props) {
+export default function WeeklyValidationCard({ loading, data, scheduledSessionsCount }: Props) {
   if (loading) {
     return (
       <View style={styles.card}>
@@ -51,8 +52,14 @@ export default function WeeklyValidationCard({ loading, data }: Props) {
   const todayWorkoutDone = !!today?.workoutCompleted;
   const todayNutritionDone = !!today?.nutritionGoalCompleted;
 
-  // Target workout sessions count (e.g. 4 or 3 instead of 7)
-  const targetSessions = data.targetWorkoutSessions || (data.totalDays && data.totalDays < 7 ? data.totalDays : 4);
+  // Target workout sessions count (ensures accurate count if 2 sessions exist in the week)
+  const scheduledDaysCount = data.days.filter((d) => d.hasScheduledWorkout).length;
+  const targetSessions = Math.max(
+    data.targetWorkoutSessions || 0,
+    scheduledDaysCount,
+    scheduledSessionsCount || 0,
+    1
+  );
   const completedSessions = data.completedWorkoutsCount ?? data.days.filter((d) => d.workoutCompleted).length;
   const restDaysCount = data.days.filter((d) => d.isRestDay).length || Math.max(0, 7 - targetSessions);
   const progressPct = Math.min(100, Math.round((completedSessions / Math.max(1, targetSessions)) * 100));
@@ -186,6 +193,7 @@ export default function WeeklyValidationCard({ loading, data }: Props) {
           const isRest = day.hasScheduledWorkout === false || !!day.isRestDay;
           const isDone = !isRest && !!day.workoutCompleted;
           const isToday = !!day.isToday;
+          const isRattrapage = !isRest && !isDone && day.status === 'rattrapage';
 
           return (
             <View
@@ -194,6 +202,7 @@ export default function WeeklyValidationCard({ loading, data }: Props) {
                 styles.dayCard,
                 isRest && styles.dayCardRest,
                 isDone && styles.dayCardDone,
+                isRattrapage && styles.dayCardRattrapage,
                 isToday && styles.dayCardToday,
               ]}
             >
@@ -202,6 +211,7 @@ export default function WeeklyValidationCard({ loading, data }: Props) {
                   styles.dayLabel,
                   isToday && styles.dayLabelToday,
                   isDone && styles.dayLabelDone,
+                  isRattrapage && styles.dayLabelRattrapage,
                 ]}
               >
                 {day.label}
@@ -211,6 +221,8 @@ export default function WeeklyValidationCard({ loading, data }: Props) {
                   <Text style={styles.restChipText}>REPOS</Text>
                 ) : isDone ? (
                   <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+                ) : isRattrapage ? (
+                  <Ionicons name="refresh-outline" size={13} color="#F59E0B" />
                 ) : (
                   <Ionicons name="barbell-outline" size={12} color="rgba(255,255,255,0.25)" />
                 )}
@@ -405,6 +417,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(34,197,94,0.35)',
     backgroundColor: 'rgba(34,197,94,0.08)',
   },
+  dayCardRattrapage: {
+    borderColor: 'rgba(245,158,11,0.35)',
+    backgroundColor: 'rgba(245,158,11,0.08)',
+  },
   dayCardToday: {
     borderColor: BRAND_YELLOW,
     borderWidth: 1.6,
@@ -421,6 +437,9 @@ const styles = StyleSheet.create({
   },
   dayLabelDone: {
     color: '#86EFAC',
+  },
+  dayLabelRattrapage: {
+    color: '#FCD34D',
   },
   dayIconSlot: {
     height: 16,

@@ -54,10 +54,15 @@ export default function WarmupScreen() {
     if (!session) return;
     setStarting(true);
     try {
-      await workoutService.startWorkout(sessionTemplateId);
+      const res = await workoutService.startWorkout(sessionTemplateId);
       const reelsSession = buildReelsSessionFromApiSession(session);
       if (reelsSession) {
-        navigation.replace('SessionReels', { sessionTemplateId, session: reelsSession });
+        navigation.replace('SessionReels', {
+          sessionTemplateId,
+          session: reelsSession,
+          workoutSessionId: res?.workoutSession?._id,
+          resumeFromStorage: true,
+        });
       } else {
         navigation.goBack();
       }

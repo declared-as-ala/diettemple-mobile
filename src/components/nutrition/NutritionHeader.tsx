@@ -1,7 +1,51 @@
 import { BRAND_YELLOW } from '../../constants/brand';
-import React,{memo} from 'react';
-import {View,Text,StyleSheet} from 'react-native';
-import {DateSegmentChips,type DateOption} from './DateSegmentChips';
-interface Props {selectedDateKey:string;titleDateLabel:string;options:DateOption[];onSelectDate:(key:string)=>void}
-export const NutritionHeader=memo(function NutritionHeader({selectedDateKey,titleDateLabel,options,onSelectDate}:Props){return <View style={s.wrap}><Text style={s.eyebrow}>UN JOUR À LA FOIS</Text><Text style={s.title}>Votre équilibre,{ '\n' }au quotidien.</Text><Text style={s.subtitle}>Vos repas, vos apports et vos recettes réunis.</Text><View style={s.dateRow}><Text style={s.date}>{titleDateLabel}</Text><Text style={s.hint}>Journal alimentaire</Text></View><DateSegmentChips options={options} selectedKey={selectedDateKey} onSelect={onSelectDate}/></View>});
-const s=StyleSheet.create({wrap:{marginBottom:8},eyebrow:{color:BRAND_YELLOW,fontSize:10,fontWeight:'700',letterSpacing:2,marginTop:8},title:{fontSize:31,lineHeight:38,fontWeight:'700',letterSpacing:-1,color:'#F4F3E8',marginTop:12},subtitle:{color:'#B1BDA3',fontSize:13,lineHeight:20,marginTop:10},dateRow:{flexDirection:'row',flexWrap:'wrap',gap:8,alignItems:'center',justifyContent:'space-between',marginTop:26,marginBottom:12},date:{fontSize:14,color:'#F3F2E8',fontWeight:'600'},hint:{color:'#A6B695',fontSize:11}});
+import React, { memo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { DateSegmentChips, type DateOption } from './DateSegmentChips';
+
+interface Props {
+  selectedDateKey: string;
+  titleDateLabel: string;
+  options: DateOption[];
+  onSelectDate: (key: string) => void;
+}
+
+export const NutritionHeader = memo(function NutritionHeader({
+  selectedDateKey,
+  titleDateLabel,
+  options,
+  onSelectDate,
+}: Props) {
+  return (
+    <View style={s.wrap}>
+      <View style={s.dateRow}>
+        <Text style={s.date}>{titleDateLabel}</Text>
+        <Text style={s.hint}>Journal alimentaire</Text>
+      </View>
+      <DateSegmentChips options={options} selectedKey={selectedDateKey} onSelect={onSelectDate} />
+    </View>
+  );
+});
+
+const s = StyleSheet.create({
+  wrap: { marginBottom: 8 },
+  dateRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  date: {
+    fontSize: 14,
+    color: '#F3F4F6',
+    fontWeight: '700',
+  },
+  hint: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+});

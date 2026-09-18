@@ -25,7 +25,7 @@ type Nav = StackNavigationProp<RootStackParamList, 'SessionQuickStart'>;
 export default function SessionQuickStartScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { sessionId } = route.params;
+  const { sessionId, completionType, originalScheduledDate } = route.params;
   const [phase, setPhase] = useState<'loading' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -52,8 +52,10 @@ export default function SessionQuickStartScreen() {
         navigation.replace('GymVerification', { sessionId });
         return;
       }
+      let activeWorkoutSessionId: string | undefined;
       try {
-        await workoutService.startWorkout(sessionId);
+        const startRes = await workoutService.startWorkout(sessionId);
+        activeWorkoutSessionId = startRes.workoutSession?._id;
       } catch (e: any) {
         if (e?.response?.status === 403 && e?.response?.data?.code === 'GYM_CHECKIN_REQUIRED') {
           await useGymCheckinStore.getState().syncStatus();
@@ -69,7 +71,14 @@ export default function SessionQuickStartScreen() {
         return;
       }
       if (reelsSession) {
-        navigation.replace('SessionReels', { sessionTemplateId: sessionId, session: reelsSession });
+        navigation.replace('SessionReels', {
+          sessionTemplateId: sessionId,
+          session: reelsSession,
+          workoutSessionId: activeWorkoutSessionId,
+          resumeFromStorage: true,
+          completionType,
+          originalScheduledDate,
+        });
       } else {
         setErrorMessage('Cette séance ne contient aucun exercice.');
         setPhase('error');
@@ -79,7 +88,7 @@ export default function SessionQuickStartScreen() {
       setErrorMessage(status === 404 ? 'Séance introuvable.' : 'Impossible de préparer la séance. Réessaie.');
       setPhase('error');
     }
-  }, [navigation, sessionId]);
+  }, [navigation, sessionId, completionType, originalScheduledDate]);
 
   useEffect(() => {
     go();
