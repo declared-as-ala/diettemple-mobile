@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --offline",
+    "start": "node api.js && expo start --offline",
     "start:clean": "expo start -c --offline",
     "android": "expo run:android",
     "ios": "expo run:ios",
