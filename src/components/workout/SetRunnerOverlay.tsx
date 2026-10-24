@@ -27,6 +27,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import type { SetLog } from '../../services/workoutProgressStorage';
+import {
+  LOAD_MODE_LABELS,
+  defaultLoadMode as resolveDefaultLoadMode,
+  type ExerciseLoadMode,
+} from '../../utils/workoutLoad';
 
 const vibrate = (ms: number) => {
   try {
@@ -49,6 +54,9 @@ export interface SetRunnerOverlayProps {
   totalSets: number;
   /** Logs for previous sets (to get last weight for default and recommendation). */
   previousLogs: SetLog[];
+  currentLog?: SetLog;
+  supportedLoadModes?: ExerciseLoadMode[];
+  defaultLoadMode?: ExerciseLoadMode;
   /** Target reps range; default 8–12. */
   targetRepsMin?: number;
   targetRepsMax?: number;
@@ -58,7 +66,15 @@ export interface SetRunnerOverlayProps {
   saving?: boolean;
   onCancel: () => void;
   /** Called after user saves a set (weight, reps, duration). Optional 4th: recommended weight for next set. */
-  onFinishSet: (weightKg: number | undefined, reps: number, durationSeconds: number, recommendedNextKg?: number) => void;
+  onFinishSet: (
+    weightKg: number | undefined,
+    reps: number,
+    durationSeconds: number,
+    recommendedNextKg?: number,
+    loadMode?: ExerciseLoadMode,
+    externalWeightKg?: number,
+    additionalWeightKg?: number
+  ) => void;
   /** Called when all sets for this exercise are done (after last set save). */
   onExerciseComplete?: () => void;
 }
@@ -104,6 +120,9 @@ export default function SetRunnerOverlay({
   currentSetIndex,
   totalSets,
   previousLogs,
+  currentLog,
+  supportedLoadModes = ['external_weight'],
+  defaultLoadMode,
   targetRepsMin = 8,
   targetRepsMax = 12,
   recommendedStartingWeight,
@@ -119,6 +138,12 @@ export default function SetRunnerOverlay({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [repsInput, setRepsInput] = useState('');
   const [weightInput, setWeightInput] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [loadMode, setLoadMode] = useState<ExerciseLoadMode>(
+    defaultLoadMode && supportedLoadModes.includes(defaultLoadMode)
+      ? defaultLoadMode
+      : resolveDefaultLoadMode({ supportedLoadModes })
+  );
   const [lastRecommendation, setLastRecommendation] = useState<{
     message: string;
     suggestedKg: number;
@@ -128,6 +153,9 @@ export default function SetRunnerOverlay({
     reps: number;
     duration: number;
     suggestedKg: number;
+    loadMode: ExerciseLoadMode;
+    externalWeightKg: number;
+    additionalWeightKg: number;
   } | null>(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -135,6 +163,7 @@ export default function SetRunnerOverlay({
   const setNumber = currentSetIndex + 1;
   const isWideLayout = windowWidth >= 900 || windowWidth > windowHeight;
   const isLastSet = currentSetIndex >= totalSets - 1;
+  const isEditing = !!currentLog?.completed;
   const lastLoggedWeight =
     previousLogs.length > 0 ? previousLogs[previousLogs.length - 1]?.weightKg : undefined;
   const lastWeight =
@@ -156,18 +185,28 @@ export default function SetRunnerOverlay({
     }
   }, []);
 
-  // When overlay opens or set index changes, reset to timer step
+  // Completed sets reopen directly in edit mode; new sets start the timer.
   useEffect(() => {
     if (!visible) return;
-    setStep('timer');
-    setElapsedSeconds(0);
-    setRepsInput('');
-    setWeightInput(lastWeight != null ? String(lastWeight) : '');
+    const nextMode = currentLog?.loadMode ?? (
+      defaultLoadMode && supportedLoadModes.includes(defaultLoadMode)
+        ? defaultLoadMode
+        : supportedLoadModes[0] ?? 'external_weight'
+    );
+    setLoadMode(nextMode);
+    setStep(isEditing ? 'input' : 'timer');
+    setElapsedSeconds(currentLog?.durationSeconds ?? 0);
+    setRepsInput(currentLog?.reps != null ? String(currentLog.reps) : '');
+    const storedWeight = nextMode === 'bodyweight_plus_weight'
+      ? currentLog?.additionalWeightKg ?? currentLog?.weightKg
+      : currentLog?.externalWeightKg ?? currentLog?.weightKg ?? lastWeight;
+    setWeightInput(nextMode === 'bodyweight' || storedWeight == null ? '' : String(storedWeight));
     setLastRecommendation(null);
     setPendingAdvance(null);
-    startTimer();
+    setValidationError(null);
+    if (!isEditing) startTimer();
     return () => stopTimer();
-  }, [visible, currentSetIndex, startTimer, stopTimer]);
+  }, [visible, currentSetIndex, currentLog, defaultLoadMode, supportedLoadModes, isEditing, lastWeight, startTimer, stopTimer]);
 
   // Slide animation when set index changes (horizontal advance)
   useEffect(() => {
@@ -192,23 +231,38 @@ export default function SetRunnerOverlay({
 
   const handleSave = useCallback(() => {
     const reps = parseInt(repsInput.trim(), 10);
-    if (Number.isNaN(reps) || reps < 0) return;
-    const weightKg = weightInput.trim() ? parseFloat(weightInput.trim()) : undefined;
+    if (Number.isNaN(reps) || reps <= 0 || reps > 1000) {
+      setValidationError('Saisis un nombre de repetitions entre 1 et 1000.');
+      return;
+    }
+    const parsedWeight = weightInput.trim() ? Number(weightInput.trim().replace(',', '.')) : 0;
+    if (loadMode !== 'bodyweight' && (!Number.isFinite(parsedWeight) || parsedWeight < 0 || parsedWeight > 1000)) {
+      setValidationError('La charge doit etre comprise entre 0 et 1000 kg.');
+      return;
+    }
+    if (loadMode === 'bodyweight_plus_weight' && parsedWeight <= 0) {
+      setValidationError('Ajoute une charge superieure a 0 kg.');
+      return;
+    }
+    setValidationError(null);
+    const externalWeightKg = loadMode === 'external_weight' ? parsedWeight : 0;
+    const additionalWeightKg = loadMode === 'bodyweight_plus_weight' ? parsedWeight : 0;
+    const weightKg = loadMode === 'bodyweight' ? 0 : parsedWeight;
     const duration = elapsedSeconds;
     vibrate(50);
 
-    const { message, suggestedKg } = getWeightRecommendation(
-      reps,
-      weightKg ?? lastWeight,
-      targetRepsMin,
-      targetRepsMax
-    );
+    const { message, suggestedKg } = loadMode === 'bodyweight'
+      ? { message: 'Serie au poids du corps enregistree.', suggestedKg: 0 }
+      : getWeightRecommendation(reps, weightKg ?? lastWeight, targetRepsMin, targetRepsMax);
     setLastRecommendation({ message, suggestedKg });
     setPendingAdvance({
       weightKg,
       reps,
       duration,
       suggestedKg,
+      loadMode,
+      externalWeightKg,
+      additionalWeightKg,
     });
     setStep('recommendation');
   }, [
@@ -218,6 +272,7 @@ export default function SetRunnerOverlay({
     targetRepsMin,
     targetRepsMax,
     elapsedSeconds,
+    loadMode,
   ]);
 
   const handleContinue = useCallback(() => {
@@ -226,7 +281,10 @@ export default function SetRunnerOverlay({
       pendingAdvance.weightKg,
       pendingAdvance.reps,
       pendingAdvance.duration,
-      pendingAdvance.suggestedKg
+      pendingAdvance.suggestedKg,
+      pendingAdvance.loadMode,
+      pendingAdvance.externalWeightKg,
+      pendingAdvance.additionalWeightKg
     );
     if (isLastSet && onExerciseComplete) {
       onExerciseComplete();
@@ -312,7 +370,7 @@ export default function SetRunnerOverlay({
 
           {step === 'input' && (
             <>
-              <Text style={[styles.setHeader, { color: colors.text }]}>Enregistrer la série</Text>
+              <Text style={[styles.setHeader, { color: colors.text }]}>{isEditing ? `Modifier la série ${setNumber}` : 'Enregistrer la série'}</Text>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Nombre de reps ?</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.text }]}
@@ -320,20 +378,58 @@ export default function SetRunnerOverlay({
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="number-pad"
                 value={repsInput}
-                onChangeText={setRepsInput}
+                onChangeText={(value) => { setRepsInput(value); setValidationError(null); }}
                 autoFocus
                 returnKeyType="next"
               />
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Poids (kg)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.text }]}
-                placeholder="Poids"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="decimal-pad"
-                value={weightInput}
-                onChangeText={setWeightInput}
-                returnKeyType="done"
-              />
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Mode de charge</Text>
+              <View style={styles.modeList}>
+                {supportedLoadModes.map((mode) => {
+                  const selected = loadMode === mode;
+                  return (
+                    <Pressable
+                      key={mode}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      onPress={() => {
+                        setLoadMode(mode);
+                        setValidationError(null);
+                        if (mode === 'bodyweight') setWeightInput('');
+                      }}
+                      style={({ pressed }) => [styles.modeOption, selected && styles.modeOptionSelected, pressed && { opacity: 0.78 }]}
+                    >
+                      <Ionicons name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={selected ? ACCENT : colors.textSecondary} />
+                      <Text style={[styles.modeOptionText, { color: selected ? colors.text : colors.textSecondary }]}>{LOAD_MODE_LABELS[mode]}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {loadMode !== 'bodyweight' && (
+                <>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                    {loadMode === 'bodyweight_plus_weight' ? 'Charge additionnelle (kg)' : 'Charge externe (kg)'}
+                  </Text>
+                  <View style={styles.weightRow}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Diminuer de 2,5 kg" onPress={() => setWeightInput(String(Math.max(0, (Number(weightInput.replace(',', '.')) || 0) - 2.5)))} style={styles.stepperBtn}>
+                      <Ionicons name="remove" size={20} color={colors.text} />
+                    </Pressable>
+                    <TextInput
+                      accessibilityLabel={loadMode === 'bodyweight_plus_weight' ? 'Charge additionnelle en kilogrammes' : 'Charge externe en kilogrammes'}
+                      style={[styles.input, styles.weightInput, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.text }]}
+                      placeholder="0"
+                      placeholderTextColor={colors.textSecondary}
+                      keyboardType="decimal-pad"
+                      value={weightInput}
+                      onChangeText={(value) => { setWeightInput(value); setValidationError(null); }}
+                      returnKeyType="done"
+                    />
+                    <Pressable accessibilityRole="button" accessibilityLabel="Augmenter de 2,5 kg" onPress={() => setWeightInput(String((Number(weightInput.replace(',', '.')) || 0) + 2.5))} style={styles.stepperBtn}>
+                      <Ionicons name="add" size={20} color={colors.text} />
+                    </Pressable>
+                  </View>
+                </>
+              )}
+              {validationError && <Text accessibilityRole="alert" style={styles.validationError}>{validationError}</Text>}
               <View style={styles.inputActions}>
                 <TouchableOpacity
                   style={[styles.cancelBtn, { borderColor: colors.border, flex: 1 }]}
@@ -384,7 +480,7 @@ export default function SetRunnerOverlay({
                   <View style={[styles.recommendationCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                     <Text style={[styles.recommendationText, { color: colors.text }]}>{lastRecommendation.message}</Text>
                     <Text style={[styles.nextSetHint, { color: colors.textSecondary }]}>
-                      Prochaine série : essayer {lastRecommendation.suggestedKg} kg
+                      {loadMode === 'bodyweight' ? 'Prochaine série : poids du corps' : `Prochaine série : essayer ${lastRecommendation.suggestedKg} kg`}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -502,6 +598,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
   },
+  modeList: { gap: 8 },
+  modeOption: {
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  modeOptionSelected: { borderColor: ACCENT, backgroundColor: 'rgba(212,175,55,0.10)' },
+  modeOptionText: { fontSize: 14, fontWeight: '700', flex: 1 },
+  weightRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  weightInput: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  stepperBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  validationError: { color: '#FCA5A5', fontSize: 13, lineHeight: 18, marginTop: 10 },
   inputActions: {
     flexDirection: 'row',
     alignItems: 'center',

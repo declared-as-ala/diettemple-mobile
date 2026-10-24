@@ -3,15 +3,22 @@
  * Used for: home day dots (grey / yellow / green) and set logs (weight, reps) in Reels.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { ExerciseLoadMode } from '../utils/workoutLoad';
 
 const PREFIX = '@diet_temple_progress_';
 
 export type DayProgressStatus = 'none' | 'started' | 'completed';
 
 export interface SetLog {
+  id?: string;
   weightKg?: number;
+  loadMode?: ExerciseLoadMode;
+  externalWeightKg?: number;
+  additionalWeightKg?: number;
   reps?: number;
   completed: boolean;
+  completedAt?: string;
+  syncStatus?: 'pending' | 'synced' | 'failed';
   /** Duration of set in seconds (from chronometer). */
   durationSeconds?: number;
 }
@@ -60,7 +67,6 @@ export const workoutProgressStorage = {
     next[setIndex] = setLog;
     sets[exerciseIndex] = next;
 
-    const totalSetsForExercise = Object.values(sets).flat().length; // approximate; we don't have target count here
     const allCompleted = Object.values(next).every((s) => s?.completed);
     const anyCompleted = next.some((s) => s?.completed);
     let status: DayProgressStatus = current?.status ?? 'none';

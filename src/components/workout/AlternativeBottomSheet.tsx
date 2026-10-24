@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import type { ExerciseLoadMode } from '../../utils/workoutLoad';
 
 export interface AlternativeOption {
   _id: string;
@@ -20,6 +21,10 @@ export interface AlternativeOption {
   videoUrl?: string;
   videoSource?: any;
   description?: string;
+  supportedLoadModes?: ExerciseLoadMode[];
+  defaultLoadMode?: ExerciseLoadMode;
+  supportsAdditionalWeight?: boolean;
+  defaultWeight?: number;
   isPrimary?: boolean;
 }
 
