@@ -1,12 +1,12 @@
 import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  AccessibilityInfo, Animated, Easing, Image, Platform,
+  AccessibilityInfo, Animated, Easing, Platform,
   StyleSheet, Text, useWindowDimensions, View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 const PALETTE = {
   background: '#000000',
@@ -25,6 +25,8 @@ interface Props {
   onFinish?: () => void;
 }
 
+const splashVideoSource = require('../../assets/spash.original.mp4');
+
 export default function LuxurySplash({
   progress,
   label = 'Préparation de votre espace',
@@ -41,6 +43,13 @@ export default function LuxurySplash({
   const onFinishRef = useRef(onFinish);
   const hasFinished = useRef(false);
   onFinishRef.current = onFinish;
+
+  const player = useVideoPlayer(splashVideoSource, (p) => {
+    p.loop = false;
+    p.muted = false;
+    p.staysActiveInBackground = false;
+    p.play();
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -74,28 +83,6 @@ export default function LuxurySplash({
   }, [entrance, reduceMotion]);
 
   useEffect(() => {
-    // Browsers require a user gesture for audio; native startup keeps the sound.
-    if (Platform.OS === 'web') return;
-    let mounted = true;
-    let player: ReturnType<typeof createAudioPlayer> | undefined;
-    (async () => {
-      try {
-        await setAudioModeAsync({ playsInSilentMode: false, shouldPlayInBackground: false });
-        if (!mounted) return;
-        player = createAudioPlayer(require('../../assets/spalsh.mp3'));
-        player.volume = 0.45;
-        player.play();
-      } catch {
-        // Audio is optional; it must never delay startup.
-      }
-    })();
-    return () => {
-      mounted = false;
-      player?.remove();
-    };
-  }, []);
-
-  useEffect(() => {
     const animation = Animated.timing(progressValue, {
       toValue: pct / 100, duration: reduceMotion === false ? 240 : 0, useNativeDriver: true,
     });
@@ -124,14 +111,16 @@ export default function LuxurySplash({
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
+            s.videoStage,
             { opacity: entrance },
           ]}
         >
-          <Image
-            source={require('../../assets/splash.png')}
-            resizeMode="contain"
-            fadeDuration={0}
-            style={s.splashImage}
+          <VideoView
+            player={player}
+            style={s.splashVideo}
+            contentFit="contain"
+            nativeControls={false}
+            pointerEvents="none"
           />
         </Animated.View>
 
@@ -175,7 +164,8 @@ export default function LuxurySplash({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: PALETTE.background },
-  splashImage: { width: '100%', height: '100%' },
+  videoStage: { alignItems: 'center', justifyContent: 'center' },
+  splashVideo: { width: '90%', height: '90%' },
   safeArea: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 24 },
   footer: { alignItems: 'center', flexShrink: 0 },
   loader: { width: '100%' },
