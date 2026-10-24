@@ -29,6 +29,7 @@ export interface AuthState {
 }
 
 export type VideoSourceType = 'upload' | 'youtube' | 'external';
+export type ExerciseLoadMode = 'external_weight' | 'bodyweight' | 'bodyweight_plus_weight';
 
 export interface Exercise {
   _id: string;
@@ -41,9 +42,17 @@ export interface Exercise {
   description?: string;
   imageUrl?: string;
   videoUrl?: string;
+  videoVariants?: Array<{ quality: string; url: string; bytes?: number; bitrateKbps?: number }>;
+  videoPosterUrl?: string;
+  videoHlsUrl?: string;
+  videoDurationSec?: number;
   videoSource?: VideoSourceType;
   videoFilePath?: string;
   status?: 'pending' | 'in_progress' | 'completed' | 'skipped';
+  supportedLoadModes?: ExerciseLoadMode[];
+  defaultLoadMode?: ExerciseLoadMode;
+  supportsAdditionalWeight?: boolean;
+  defaultWeight?: number;
 }
 
 export type RootStackParamList = {
@@ -150,12 +159,35 @@ export type RootStackParamList = {
           videoUrl?: string;
           description?: string;
           videoSource?: VideoSourceType;
+          videoVariants?: Array<{ quality: string; url: string; bytes?: number; bitrateKbps?: number }>;
+          videoPosterUrl?: string;
+          videoHlsUrl?: string;
+          videoDurationSec?: number;
+          supportedLoadModes?: ExerciseLoadMode[];
+          defaultLoadMode?: ExerciseLoadMode;
+          supportsAdditionalWeight?: boolean;
+          defaultWeight?: number;
         };
-        alternatives?: Array<{ _id: string; name: string; muscleGroup?: string; equipment?: string; videoUrl?: string }>;
+        alternatives?: Array<{
+          _id: string;
+          name: string;
+          muscleGroup?: string;
+          equipment?: string;
+          videoUrl?: string;
+          supportedLoadModes?: ExerciseLoadMode[];
+          defaultLoadMode?: ExerciseLoadMode;
+          supportsAdditionalWeight?: boolean;
+          defaultWeight?: number;
+        }>;
         sets?: number;
         reps?: string;
         restSeconds?: number;
         order?: number;
+        /** Coach message for this exercise (shown as a chat bubble in the workout screen). */
+        clientInstruction?: string;
+        instruction?: string;
+        message?: string;
+        notes?: string;
       }>;
     };
   };

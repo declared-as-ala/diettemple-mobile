@@ -24,6 +24,7 @@ import {
   KeyboardAvoidingView,
   StatusBar as RNStatusBar,
   BackHandler,
+  PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,16 +38,25 @@ import { RootStackParamList, type VideoSourceType } from '../types';
 import { resolveVideoUrl } from '../config/api.config';
 import RestTimer from '../components/RestTimer';
 import ReelsVideoPlayer, { type ReelsVideoPlayerHandle } from '../components/workout/ReelsVideoPlayer';
+import QualitySheet from '../components/workout/QualitySheet';
 import { useActiveWorkoutPersistStore } from '../store/activeWorkoutPersistStore';
 import AlternativeBottomSheet, { AlternativeOption } from '../components/workout/AlternativeBottomSheet';
 import SetRunnerOverlay from '../components/workout/SetRunnerOverlay';
 import { workoutProgressStorage, type SetLog } from '../services/workoutProgressStorage';
 import { workoutService } from '../services/workoutService';
+import { homeService } from '../services/homeService';
+import { buildReelsSessionFromApiSession } from '../utils/buildReelsSessionFromApiSession';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWorkoutProgress } from '../hooks/useWorkoutProgress';
 import { useWorkoutCompletionSound } from '../hooks/useWorkoutCompletionSound';
 import { usePreventScreenCapture } from '../hooks/usePreventScreenCapture';
 import { findFirstIncompletePosition } from '../utils/workoutResumeReconciler';
+import {
+  defaultLoadMode as resolveDefaultLoadMode,
+  formatSetLoad,
+  supportedLoadModes as resolveSupportedLoadModes,
+  type ExerciseLoadMode,
+} from '../utils/workoutLoad';
 type SessionReelsRouteProp = RouteProp<RootStackParamList, 'SessionReels'>;
 type SessionReelsNavProp = StackNavigationProp<RootStackParamList, 'SessionReels'>;
 
@@ -64,6 +74,14 @@ type SessionItem = {
     videoUrl?: string;
     description?: string;
     videoSource?: VideoSourceType;
+    videoVariants?: Array<{ quality: string; url: string; bytes?: number; bitrateKbps?: number }>;
+    videoPosterUrl?: string;
+    videoHlsUrl?: string;
+    videoDurationSec?: number;
+    supportedLoadModes?: ExerciseLoadMode[];
+    defaultLoadMode?: ExerciseLoadMode;
+    supportsAdditionalWeight?: boolean;
+    defaultWeight?: number;
     instruction?: string;
     message?: string;
     clientInstruction?: string;
@@ -112,67 +130,65 @@ function getTargetRepsRange(reps: string | number | { min?: number; max?: number
 }
 
 /**
- * Handle duplicate exercise when an alternative is selected:
- * The same exercise must not be performed twice in the same workout session.
- * If a following exercise's principal was already selected or performed in an earlier slot,
- * its first unused alternative becomes its new principal exercise.
+ * Rebuilds the effective exercise of every slot from the immutable slot definitions plus the
+ * client's explicit picks (session-scoped, see utils/exerciseSelection). Nothing is mutated
+ * permanently: changing a pick back restores displaced exercises.
  */
-function deduplicateWorkoutItems(itemList: SessionItem[]): SessionItem[] {
-  const result = itemList.map((it) => ({
-    ...it,
-    exerciseId: { ...it.exerciseId },
-    alternatives: it.alternatives ? [...it.alternatives] : [],
+function applyEffectiveExercises(
+  itemList: SessionItem[],
+  slots: Record<number, { primary: any; alternatives: any[] }>,
+  selections: Record<number, string>,
+  locked: Record<number, string>
+): SessionItem[] {
+  if (itemList.some((_, i) => !slots[i])) return itemList;
+  const defs: SlotDef<any>[] = itemList.map((_, i) => ({
+    primary: { ...slots[i].primary, _id: resolveExerciseId(slots[i].primary) ?? '' },
+    alternatives: (slots[i].alternatives || []).map((a: any) => ({ ...a, _id: resolveExerciseId(a) ?? '' })),
   }));
-  const usedExerciseIds = new Set<string>();
-
-  for (let i = 0; i < result.length; i++) {
-    const item = result[i];
-    const currentId = resolveExerciseId(item.exerciseId);
-
-    if (currentId && usedExerciseIds.has(currentId)) {
-      // Main exercise is duplicate of an earlier slot; replace with first unused alternative
-      const candidateAlt = item.alternatives?.find((alt) => {
-        const altId = resolveExerciseId(alt);
-        return altId && !usedExerciseIds.has(altId) && altId !== currentId;
-      });
-
-      if (candidateAlt) {
-        const oldMain = item.exerciseId;
-        item.exerciseId = {
-          _id: candidateAlt._id,
-          name: candidateAlt.name,
-          muscleGroup: candidateAlt.muscleGroup,
-          equipment: candidateAlt.equipment,
-          videoUrl: candidateAlt.videoUrl,
-          videoSource: candidateAlt.videoSource,
-          description: candidateAlt.description,
-        };
-        const remainingAlts = (item.alternatives || []).filter(
-          (a) => resolveExerciseId(a) !== candidateAlt._id
-        );
-        item.alternatives = [
-          ...remainingAlts,
-          {
-            _id: oldMain._id,
-            name: oldMain.name,
-            muscleGroup: oldMain.muscleGroup,
-            equipment: oldMain.equipment,
-            videoUrl: oldMain.videoUrl,
-          },
-        ];
-      }
-    }
-
-    const finalId = resolveExerciseId(item.exerciseId);
-    if (finalId) {
-      usedExerciseIds.add(finalId);
-    }
-  }
-
-  return result;
+  const effective = resolveEffectiveExercises(defs, selections, locked);
+  return itemList.map((it, i) => {
+    const eff = effective[i];
+    const def = defs[i];
+    const exerciseId =
+      eff._id === def.primary._id
+        ? { ...def.primary }
+        : {
+            _id: eff._id,
+            name: eff.name,
+            muscleGroup: eff.muscleGroup,
+            equipment: eff.equipment,
+            videoUrl: eff.videoUrl,
+            videoSource: eff.videoSource,
+            description: eff.description,
+            supportedLoadModes: eff.supportedLoadModes,
+            defaultLoadMode: eff.defaultLoadMode,
+            supportsAdditionalWeight: eff.supportsAdditionalWeight,
+            defaultWeight: eff.defaultWeight,
+          };
+    const alternatives = slotCandidates(def)
+      .filter((c) => c._id !== eff._id)
+      .map((c) => ({
+        _id: c._id,
+        name: c.name,
+        muscleGroup: c.muscleGroup,
+        equipment: c.equipment,
+        videoUrl: c.videoUrl,
+        supportedLoadModes: c.supportedLoadModes,
+        defaultLoadMode: c.defaultLoadMode,
+        supportsAdditionalWeight: c.supportsAdditionalWeight,
+        defaultWeight: c.defaultWeight,
+      }));
+    return { ...it, exerciseId, alternatives };
+  });
 }
 
 import { getLocalDateKey } from '../utils/date';
+import {
+  applyExplicitSelection,
+  resolveEffectiveExercises,
+  slotCandidates,
+  SlotDef,
+} from '../utils/exerciseSelection';
 import { hydrateGymCheckinStore, useGymCheckinStore } from '../store/gymCheckinStore';
 
 type GymGateState = 'loading' | 'ready' | 'needVerification';
@@ -194,6 +210,7 @@ function HistoryPanel({
   history: {
     lastWeight: number;
     personalRecord?: number;
+    personalRecords?: { externalWeightKg?: number; additionalWeightKg?: number; bodyweightMaxReps?: number };
     lastReps: number[];
     lastSets: any[];
     lastCompletedAt?: string;
@@ -319,7 +336,7 @@ function HistoryPanel({
                       {prevReps != null ? `${prevReps} reps` : '—'}
                     </Text>
                     <Text style={[hp.compareWeightValue, hp.colVal]}>
-                      {prevWeight != null ? `${prevWeight} kg` : '—'}
+                      {prevSet ? formatSetLoad({ ...prevSet, weightKg: prevWeight ?? undefined }) : '—'}
                     </Text>
                   </View>
                 );
@@ -372,15 +389,16 @@ function HistoryPanel({
                   </View>
                   <View style={[hp.inputWrap, hp.colInput]}>
                     <TextInput
-                      value={log.weightKg != null ? String(log.weightKg) : ''}
+                      value={log.loadMode === 'bodyweight' ? '' : (log.additionalWeightKg ?? log.externalWeightKg ?? log.weightKg) != null ? String(log.additionalWeightKg ?? log.externalWeightKg ?? log.weightKg) : ''}
                       onChangeText={(v) => onChangeSetWeight(i, v)}
                       onFocus={handleInputFocus}
-                      placeholder="Kg"
+                      placeholder={log.loadMode === 'bodyweight' ? 'PDC' : log.loadMode === 'bodyweight_plus_weight' ? '+ kg' : 'Kg'}
                       placeholderTextColor="rgba(255,255,255,0.35)"
                       keyboardType="decimal-pad"
                       returnKeyType="done"
                       onSubmitEditing={Keyboard.dismiss}
                       style={hp.input}
+                      editable={log.loadMode !== 'bodyweight'}
                     />
                   </View>
                 </View>
@@ -413,66 +431,239 @@ function HistoryPanel({
 
 // ── Coach Instruction floating card component (Non-blocking Reel overlay) ────
 
-function CoachInstructionFloatingCard({
-  visible,
-  instruction,
-  onDismiss,
-}: {
-  visible: boolean;
-  exerciseName?: string;
-  instruction: string;
-  onDismiss: () => void;
-}) {
-  if (!visible || !instruction.trim()) return null;
+const HEAD_SIZE = 58;
+const HEAD_EDGE = 8;
+const HEAD_MIN_Y = 92; // below the top bar
+// The head keeps its place from one exercise to the next (like a Messenger chat head).
+let lastCoachHeadPos: { x: number; y: number } | null = null;
+// Heads the user removed (per session + exercise). Kept here, NOT in the parent screen: the reel rows are cached by
+// the list, so a parent state change would not redraw them and the bubble would stay on screen.
+const removedCoachHeads = new Set<string>();
+
+const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/**
+ * Coach message as a Messenger-style "chat head": a round bubble you can DRAG anywhere (it snaps to the
+ * nearest screen edge), TAP to open/close the message, and DRAG onto the X zone to remove it.
+ * A red badge shows until the message has been opened/closed once.
+ */
+function CoachChatHead({ instruction, slotKey }: { instruction: string; slotKey: string }) {
+  const start = lastCoachHeadPos ?? { x: width - HEAD_SIZE - HEAD_EDGE, y: 130 };
+  const pan = useRef(new Animated.ValueXY(start)).current;
+  const base = useRef(start);
+  const live = useRef(start);
+  const [gone, setGone] = useState(() => removedCoachHeads.has(slotKey));
+  const removeRef = useRef(() => {});
+  removeRef.current = () => {
+    removedCoachHeads.add(slotKey);
+    setGone(true);
+  };
+  const overRef = useRef(false);
+
+  const [expanded, setExpanded] = useState(true);
+  const [unread, setUnread] = useState(true);
+  const [dragging, setDragging] = useState(false);
+  const [overTrash, setOverTrash] = useState(false);
+  const [onRight, setOnRight] = useState(start.x + HEAD_SIZE / 2 > width / 2);
+  const pop = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  // New message (new exercise): the head pops in with its message open and a badge.
+  useEffect(() => {
+    setExpanded(true);
+    setUnread(true);
+    pop.setValue(0);
+    Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 6, tension: 80 }).start();
+  }, [instruction, pop]);
+
+  useEffect(() => {
+    if (!unread) {
+      pulse.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.1, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [unread, pulse]);
+
+  const trashX = width / 2;
+  const trashY = height - 96;
+  const nearTrash = (x: number, y: number) => Math.hypot(x + HEAD_SIZE / 2 - trashX, y + HEAD_SIZE / 2 - trashY) < 72;
+
+  const finish = (moved: boolean) => {
+    setDragging(false);
+    setOverTrash(false);
+    const { x, y } = live.current;
+    if (!moved) {
+      setExpanded((e) => !e);
+      setUnread(false);
+      return;
+    }
+    if (overRef.current || nearTrash(x, y)) {
+      overRef.current = false;
+      removeRef.current();
+      return;
+    }
+    const toRight = x + HEAD_SIZE / 2 > width / 2;
+    const nx = toRight ? width - HEAD_SIZE - HEAD_EDGE : HEAD_EDGE;
+    live.current = { x: nx, y };
+    lastCoachHeadPos = { x: nx, y };
+    setOnRight(toRight);
+    Animated.spring(pan, { toValue: { x: nx, y }, useNativeDriver: false, friction: 7, tension: 90 }).start();
+  };
+
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        pan.stopAnimation();
+        base.current = { ...live.current };
+        overRef.current = false;
+        setDragging(true);
+      },
+      onPanResponderMove: (_e, g) => {
+        const x = clampN(base.current.x + g.dx, 0, width - HEAD_SIZE);
+        const y = clampN(base.current.y + g.dy, HEAD_MIN_Y, height - HEAD_SIZE - 16);
+        live.current = { x, y };
+        pan.setValue({ x, y });
+        // Over the X when the bubble OR the finger is close to it (generous: easier to hit on any screen).
+        const over = nearTrash(x, y) || Math.hypot(g.moveX - trashX, g.moveY - trashY) < 90;
+        overRef.current = over;
+        setOverTrash(over);
+      },
+      // The reel list scrolls vertically: refuse to hand the touch over, otherwise dragging DOWN to the X
+      // cancels the drag (and swipes to the next exercise) before the bubble reaches the X.
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderRelease: (_e, g) => finish(Math.hypot(g.dx, g.dy) > 8),
+      onPanResponderTerminate: () => finish(true),
+    })
+  ).current;
+
+  const cardWidth = Math.min(250, width - HEAD_SIZE - 34);
+
+  if (gone) return null;
 
   return (
-    <View style={cim.floatingContainer} pointerEvents="box-none">
-      <View style={cim.card}>
-        <LinearGradient
-          colors={['rgba(212,175,55,0.16)', 'rgba(16,16,16,0.95)']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {dragging && (
+        <View style={[chat.trash, overTrash && chat.trashActive]} pointerEvents="none">
+          <Ionicons name="close" size={overTrash ? 34 : 28} color="#fff" />
+        </View>
+      )}
 
-        {/* Header row */}
-        <View style={cim.headerRow}>
-          <View style={cim.badgeRow}>
-            <View style={cim.badgeIconWrap}>
-              <Ionicons name="megaphone" size={13} color={ACCENT} />
+      {/* outer node: position (JS-driven) */}
+      <Animated.View style={[chat.anchor, { transform: [{ translateX: pan.x }, { translateY: pan.y }] }]} pointerEvents="box-none">
+        {/* inner node: pop-in (native-driven) */}
+        <Animated.View style={{ opacity: pop, transform: [{ scale: pop }] }} pointerEvents="box-none">
+          {expanded && !dragging && (
+            <View style={[chat.card, { width: cardWidth }, onRight ? { right: HEAD_SIZE + 10 } : { left: HEAD_SIZE + 10 }]} pointerEvents="none">
+              <Text style={chat.cardName}>Coach</Text>
+              <Text style={chat.cardText} numberOfLines={9}>{instruction}</Text>
             </View>
-            <Text style={cim.badgeTitle}>CONSEIL DU COACH</Text>
-          </View>
-          <TouchableOpacity
-            style={cim.closeBtn}
-            onPress={onDismiss}
-            hitSlop={10}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Instruction body */}
-        <View style={cim.bodyBox}>
-          <ScrollView style={{ maxHeight: 110 }} showsVerticalScrollIndicator={false}>
-            <Text style={cim.instructionText}>{instruction}</Text>
-          </ScrollView>
-        </View>
-
-        {/* Dismiss CTA */}
-        <TouchableOpacity style={cim.ctaBtn} onPress={onDismiss} activeOpacity={0.85}>
-          <LinearGradient
-            colors={[ACCENT, '#B8942E']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={cim.ctaGrad}
-          >
-            <Text style={cim.ctaText}>Compris ✓</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+          )}
+          <Animated.View {...responder.panHandlers} style={[chat.head, { transform: [{ scale: pulse }] }]}>
+            <Ionicons name="barbell" size={26} color="#000" />
+            {unread && (
+              <View style={chat.badge}>
+                <Text style={chat.badgeText}>1</Text>
+              </View>
+            )}
+          </Animated.View>
+        </Animated.View>
+      </Animated.View>
     </View>
+  );
+}
+
+/**
+ * "Quitter la séance ?" confirmation: explains what happens (progress saved, resumable for 20h) with the real
+ * numbers, instead of a bare system alert.
+ */
+function QuitSessionModal({
+  visible,
+  exerciseText,
+  setsText,
+  resumeUntilText,
+  onStay,
+  onQuit,
+}: {
+  visible: boolean;
+  exerciseText: string;
+  setsText: string;
+  resumeUntilText: string;
+  onStay: () => void;
+  onQuit: () => void;
+}) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible) return;
+    anim.setValue(0);
+    Animated.spring(anim, { toValue: 1, useNativeDriver: true, friction: 8, tension: 70 }).start();
+  }, [visible, anim]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onStay} statusBarTranslucent>
+      <View style={qm.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onStay} />
+        <Animated.View
+          style={[
+            qm.card,
+            {
+              opacity: anim,
+              transform: [
+                { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) },
+                { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) },
+              ],
+            },
+          ]}
+        >
+          <LinearGradient colors={['rgba(212,175,55,0.14)', 'rgba(0,0,0,0)']} style={qm.glow} />
+
+          <View style={qm.iconWrap}>
+            <Ionicons name="pause" size={28} color={ACCENT} />
+          </View>
+          <Text style={qm.title}>Quitter la séance ?</Text>
+          <Text style={qm.subtitle}>Pas de panique : ta progression est sauvegardée.</Text>
+
+          <View style={qm.infoBox}>
+            <View style={qm.infoRow}>
+              <View style={qm.infoIcon}><Ionicons name="barbell-outline" size={16} color={ACCENT} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={qm.infoLabel}>Où tu en es</Text>
+                <Text style={qm.infoValue}>{exerciseText} · {setsText}</Text>
+              </View>
+            </View>
+            <View style={qm.infoDivider} />
+            <View style={qm.infoRow}>
+              <View style={qm.infoIcon}><Ionicons name="time-outline" size={16} color={ACCENT} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={qm.infoLabel}>Reprise possible jusqu'à</Text>
+                <Text style={qm.infoValue}>{resumeUntilText}</Text>
+              </View>
+            </View>
+          </View>
+          <Text style={qm.note}>Tu retrouves ta séance dans « Continuer » sur l'accueil. Elle n'est pas validée tant que tu ne l'as pas terminée.</Text>
+
+          <TouchableOpacity style={qm.primary} onPress={onStay} activeOpacity={0.88}>
+            <LinearGradient colors={[ACCENT, '#B8942E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={qm.primaryGrad}>
+              <Ionicons name="play" size={18} color="#000" />
+              <Text style={qm.primaryText}>Continuer la séance</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity style={qm.secondary} onPress={onQuit} activeOpacity={0.8}>
+            <Ionicons name="exit-outline" size={17} color="#F87171" />
+            <Text style={qm.secondaryText}>Quitter et reprendre plus tard</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
@@ -561,6 +752,47 @@ export default function SessionReelsScreen() {
   const gymVerifiedDateKey = useGymCheckinStore((s) => s.verifiedDateKey);
   const [gymGate, setGymGate] = useState<GymGateState>('loading');
   const [isHydrated, setIsHydrated] = useState(false);
+  const [quitVisible, setQuitVisible] = useState(false);
+  const quitActionRef = useRef<any>(null);
+
+  // Coach messages are always read FRESH from the server: a resumed workout (saved before the coach wrote or
+  // edited a message) must still show the latest message. Matched by position, so swapped alternatives don't matter.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await homeService.getSession(sessionTemplateId);
+        const fresh: any = buildReelsSessionFromApiSession(res?.session);
+        if (cancelled || !fresh?.items?.length) return;
+        setItems((prev) =>
+          prev.length !== fresh.items.length
+            ? prev
+            : prev.map((it, i) => ({
+                ...it,
+                clientInstruction: fresh.items[i].clientInstruction,
+                instruction: fresh.items[i].instruction,
+                message: fresh.items[i].message,
+                notes: fresh.items[i].notes,
+                exerciseId:
+                  String(fresh.items[i].exerciseId?._id) === String(it.exerciseId?._id)
+                    ? {
+                        ...it.exerciseId,
+                        videoVariants: fresh.items[i].exerciseId?.videoVariants ?? it.exerciseId.videoVariants,
+                        videoPosterUrl: fresh.items[i].exerciseId?.videoPosterUrl ?? it.exerciseId.videoPosterUrl,
+                        videoHlsUrl: fresh.items[i].exerciseId?.videoHlsUrl ?? it.exerciseId.videoHlsUrl,
+                        videoDurationSec: fresh.items[i].exerciseId?.videoDurationSec ?? it.exerciseId.videoDurationSec,
+                      }
+                    : it.exerciseId,
+              }))
+        );
+      } catch {
+        /* offline: keep whatever the saved session already has */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionTemplateId]);
   const [activeWorkoutSessionId, setActiveWorkoutSessionId] = useState<string | undefined>(initialWorkoutSessionId);
   const isSavingSetRef = useRef(false);
 
@@ -597,8 +829,10 @@ export default function SessionReelsScreen() {
   const [unlockedIndex, setUnlockedIndex] = useState(0);
   const [setLogs, setSetLogs] = useState<Record<number, SetLog[]>>({});
   const [restVisible, setRestVisible] = useState(false);
+  const [manualRestTimer, setManualRestTimer] = useState(false);
   const [restSeconds, setRestSeconds] = useState(MIN_REST_SECONDS);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [showQualitySheet, setShowQualitySheet] = useState(false);
   const [firstLoopCompletedByExercise, setFirstLoopCompletedByExercise] = useState<Record<number, boolean>>({});
   const [userMutedOverrideByExercise, setUserMutedOverrideByExercise] = useState<Record<number, boolean>>({});
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
@@ -613,6 +847,7 @@ export default function SessionReelsScreen() {
       {
         lastWeight: number;
         personalRecord?: number;
+        personalRecords?: { externalWeightKg?: number; additionalWeightKg?: number; bodyweightMaxReps?: number };
         lastReps: number[];
         lastSets: any[];
         lastCompletedAt?: string;
@@ -620,12 +855,27 @@ export default function SessionReelsScreen() {
     >
   >({});
   const [sessionComplete, setSessionComplete] = useState(false);
+  const sessionCompleteRef = useRef(false);
   const [pendingNavParams, setPendingNavParams] = useState<any>(null);
   const [savingCurrentByExercise, setSavingCurrentByExercise] = useState<Record<string, boolean>>({});
   const [savingSet, setSavingSet] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isAdvancingRef = useRef(false);
   const originalSlots = useRef<Record<number, { primary: any; alternatives: any[] }>>({});
+  /** Session-scoped explicit exercise picks (slot index -> exercise id). Never sent to the template. */
+  const slotSelections = useRef<Record<number, string>>({});
+  const setLogsRef = useRef(setLogs);
+  setLogsRef.current = setLogs;
+  const lockedPerformedSlots = useCallback((list: SessionItem[]): Record<number, string> => {
+    const locked: Record<number, string> = {};
+    list.forEach((it, i) => {
+      if ((setLogsRef.current[i] ?? []).some((x) => x?.completed)) {
+        const id = resolveExerciseId(it.exerciseId);
+        if (id) locked[i] = id;
+      }
+    });
+    return locked;
+  }, []);
   const fetchedHistoryIds = useRef<Set<string>>(new Set());
   /**
    * Map of exercise index -> inner horizontal ScrollView ref (page 0 = video, page 1 = history).
@@ -640,7 +890,6 @@ export default function SessionReelsScreen() {
   const [resumeSeekSeconds, setResumeSeekSeconds] = useState(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
   const isHistoryOpenRef = useRef(false);
-  const [dismissedInstructions, setDismissedInstructions] = useState<Record<number, boolean>>({});
   const allowNavigationWithoutConfirm = useRef(false);
   const { maxUnlockedIndex } = useWorkoutProgress(items, setLogs, unlockedIndex);
   const { playExerciseCompleteSound, playWorkoutCompleteSound } = useWorkoutCompletionSound(require('../../assets/sound_workout.mp3'));
@@ -682,6 +931,7 @@ export default function SessionReelsScreen() {
           [exerciseId]: {
             lastWeight: h.lastWeight ?? 0,
             personalRecord: pr,
+            personalRecords: h.personalRecords,
             lastReps: h.lastReps ?? [],
             lastSets: h.lastSets ?? [],
             lastCompletedAt: h.lastCompletedAt ? new Date(h.lastCompletedAt).toLocaleDateString('fr-FR') : undefined,
@@ -707,7 +957,7 @@ export default function SessionReelsScreen() {
 
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove', (e) => {
-      if (sessionComplete || allowNavigationWithoutConfirm.current) return;
+      if (sessionCompleteRef.current || sessionComplete || allowNavigationWithoutConfirm.current) return;
       if (isHistoryOpenRef.current) {
         e.preventDefault();
         horizontalScrollRefs.current[currentIndex]?.scrollTo({ x: 0, animated: true });
@@ -715,31 +965,30 @@ export default function SessionReelsScreen() {
         return;
       }
       e.preventDefault();
-      Alert.alert(
-        'Quitter la séance ?',
-        'Ta progression est enregistrée localement. Tu pourras reprendre depuis l’accueil.',
-        [
-          { text: 'Rester', style: 'cancel' },
-          {
-            text: 'Quitter',
-            style: 'destructive',
-            onPress: () => {
-              void useActiveWorkoutPersistStore.getState().flushPersist();
-              allowNavigationWithoutConfirm.current = true;
-              navigation.dispatch(e.data.action);
-              setTimeout(() => {
-                allowNavigationWithoutConfirm.current = false;
-              }, 500);
-            },
-          },
-        ]
-      );
+      quitActionRef.current = e.data.action;
+      setQuitVisible(true);
     });
     return unsub;
   }, [navigation, sessionComplete, currentIndex]);
 
+  const confirmQuit = useCallback(() => {
+    setQuitVisible(false);
+    void useActiveWorkoutPersistStore.getState().flushPersist();
+    const action = quitActionRef.current;
+    quitActionRef.current = null;
+    if (!action) return;
+    allowNavigationWithoutConfirm.current = true;
+    navigation.dispatch(action);
+    setTimeout(() => {
+      allowNavigationWithoutConfirm.current = false;
+    }, 500);
+  }, [navigation]);
+
   useEffect(() => {
     const backAction = () => {
+      if (sessionCompleteRef.current || allowNavigationWithoutConfirm.current) {
+        return false;
+      }
       if (isHistoryOpenRef.current) {
         horizontalScrollRefs.current[currentIndex]?.scrollTo({ x: 0, animated: true });
         isHistoryOpenRef.current = false;
@@ -760,7 +1009,7 @@ export default function SessionReelsScreen() {
 
     (async () => {
       try {
-        const d = await useActiveWorkoutPersistStore.getState().hydrate();
+        const d = await useActiveWorkoutPersistStore.getState().hydrate(sessionTemplateId);
         const date = getLocalDateKey(new Date());
         const progress = await workoutProgressStorage.get(date);
 
@@ -770,12 +1019,16 @@ export default function SessionReelsScreen() {
 
         if (d && d.sessionTemplateId === sessionTemplateId && d.setLogs) {
           mergedLogs = { ...d.setLogs };
+          // Keep the ORIGINAL start so the 20h resume window is never extended by re-opening.
+          if (d.startedAt) sessionStartTime.current = d.startedAt;
           if (d.workoutSessionId && !activeWorkoutSessionId) {
             setActiveWorkoutSessionId(d.workoutSessionId);
           }
         }
 
-        if (progress?.sets) {
+        // Day progress is stored per DATE: only merge it when it belongs to THIS session (an older session resumed
+        // on a later day must not receive today's sets from another session).
+        if (progress?.sets && (!progress.sessionTemplateId || progress.sessionTemplateId === sessionTemplateId)) {
           const raw = progress.sets as Record<number, SetLog[]>;
           Object.keys(raw).forEach((k) => {
             const idx = Number(k);
@@ -856,12 +1109,24 @@ export default function SessionReelsScreen() {
             videoUrl: it.exerciseId.videoUrl,
             description: it.exerciseId.description,
             videoSource: it.exerciseId.videoSource,
+                    videoVariants: it.exerciseId.videoVariants,
+                    videoPosterUrl: it.exerciseId.videoPosterUrl,
+                    videoHlsUrl: it.exerciseId.videoHlsUrl,
+                    videoDurationSec: it.exerciseId.videoDurationSec,
+                    supportedLoadModes: it.exerciseId.supportedLoadModes,
+                    defaultLoadMode: it.exerciseId.defaultLoadMode,
+                    supportsAdditionalWeight: it.exerciseId.supportsAdditionalWeight,
+                    defaultWeight: it.exerciseId.defaultWeight,
           },
           alternatives: it.alternatives,
           sets: it.sets,
           reps: typeof it.reps === 'string' ? it.reps : formatReps(it.reps),
           restSeconds: it.restSeconds,
           order: it.order,
+          clientInstruction: it.clientInstruction,
+          instruction: it.instruction,
+          message: it.message,
+          notes: it.notes,
         })),
       },
       currentIndex,
@@ -922,6 +1187,14 @@ export default function SessionReelsScreen() {
   }, [showAlternatives, currentIndex, items, fetchHistoryForExercise]);
 
   const currentItem = items[currentIndex];
+  const currentLoadModes = useMemo(
+    () => resolveSupportedLoadModes(currentItem?.exerciseId),
+    [currentItem?.exerciseId?._id, currentItem?.exerciseId?.supportedLoadModes]
+  );
+  const currentDefaultLoadMode = useMemo(
+    () => resolveDefaultLoadMode(currentItem?.exerciseId),
+    [currentItem?.exerciseId?._id, currentItem?.exerciseId?.defaultLoadMode, currentItem?.exerciseId?.supportedLoadModes]
+  );
   const exercise = currentItem?.exerciseId;
   const sets = currentItem?.sets ?? 3;
   const reps = formatReps(currentItem?.reps);
@@ -1054,7 +1327,15 @@ export default function SessionReelsScreen() {
     if (!exerciseId) return;
     const logs = setLogs[exerciseIdx] ?? [];
     const enteredSets = logs
-      .map((s, i) => ({ setNumber: i + 1, reps: s?.reps ?? 0, weightKg: s?.weightKg ?? 0 }))
+      .map((s, i) => ({
+        setNumber: i + 1,
+        reps: s?.reps ?? 0,
+        weightKg: s?.weightKg ?? 0,
+        loadMode: s?.loadMode,
+        externalWeightKg: s?.externalWeightKg,
+        additionalWeightKg: s?.additionalWeightKg,
+        completedAt: s?.completedAt,
+      }))
       .filter((s) => s.reps > 0 || s.weightKg > 0);
     if (enteredSets.length === 0) {
       Toast.show({ type: 'info', text1: 'Aucune donnée', text2: 'Saisis au moins une série.' });
@@ -1064,7 +1345,7 @@ export default function SessionReelsScreen() {
     try {
       const currentHistory = exerciseHistories[exerciseId];
       const previousPR = currentHistory?.personalRecord ?? 0;
-      const validPRSets = enteredSets.filter((s) => s.reps >= 5 && s.reps <= 8 && s.weightKg > 0);
+      const validPRSets = enteredSets.filter((s) => (s.loadMode ?? 'external_weight') === 'external_weight' && s.reps >= 5 && s.reps <= 8 && s.weightKg > 0);
       const enteredPRMaxWeight = validPRSets.reduce((max, s) => Math.max(max, s.weightKg), 0);
       const isNewPR = enteredPRMaxWeight > previousPR && enteredPRMaxWeight > 0;
       const updatedPR = isNewPR ? enteredPRMaxWeight : previousPR;
@@ -1081,7 +1362,17 @@ export default function SessionReelsScreen() {
         next[exerciseIdx] = existing.map((s, i) => {
           const entered = enteredSets.find((es) => es.setNumber === i + 1);
           if (entered) {
-            return { ...s, reps: entered.reps, weightKg: entered.weightKg, completed: true };
+            return {
+              ...s,
+              reps: entered.reps,
+              weightKg: entered.weightKg,
+              loadMode: entered.loadMode,
+              externalWeightKg: entered.externalWeightKg,
+              additionalWeightKg: entered.additionalWeightKg,
+              completedAt: entered.completedAt ?? new Date().toISOString(),
+              completed: true,
+              syncStatus: 'synced',
+            };
           }
           return s;
         });
@@ -1094,10 +1385,14 @@ export default function SessionReelsScreen() {
         [exerciseId]: {
           lastWeight: overallLastWeight,
           personalRecord: updatedPR,
+          personalRecords: prev[exerciseId]?.personalRecords,
           lastReps: enteredSets.map((s) => s.reps),
           lastSets: enteredSets.map((s) => ({
             setNumber: s.setNumber,
             weight: s.weightKg,
+            loadMode: s.loadMode,
+            externalWeightKg: s.externalWeightKg,
+            additionalWeightKg: s.additionalWeightKg,
             repsCompleted: s.reps,
             completed: true,
           })),
@@ -1138,12 +1433,32 @@ export default function SessionReelsScreen() {
    *   7. if it was the last set of the exercise, unlock next exercise, play completion sound, and start rest timer
    */
   const handleSetRunnerFinishSet = useCallback(
-    async (weightKg: number | undefined, reps: number, durationSeconds: number, recommendedNextKg?: number) => {
+    async (
+      weightKg: number | undefined,
+      reps: number,
+      durationSeconds: number,
+      recommendedNextKg?: number,
+      loadMode: ExerciseLoadMode = 'external_weight',
+      externalWeightKg = 0,
+      additionalWeightKg = 0
+    ) => {
       if (isSavingSetRef.current) return;
       isSavingSetRef.current = true;
       const setIdx = runnerSetIndex;
-      const log: SetLog = { weightKg, reps, completed: true, durationSeconds };
       const resolvedExerciseId = resolveExerciseId(items[currentIndex]?.exerciseId);
+      const wasAlreadyCompleted = !!setLogs[currentIndex]?.[setIdx]?.completed;
+      const log: SetLog = {
+        id: `${resolvedExerciseId ?? currentIndex}:${setIdx + 1}`,
+        weightKg,
+        loadMode,
+        externalWeightKg,
+        additionalWeightKg,
+        reps,
+        completed: true,
+        completedAt: new Date().toISOString(),
+        durationSeconds,
+        syncStatus: 'pending',
+      };
       const existingLogs = setLogs[currentIndex] ?? Array.from({ length: sets }, () => ({ completed: false }));
       const updatedLogs = [...existingLogs];
       updatedLogs[setIdx] = log;
@@ -1159,20 +1474,32 @@ export default function SessionReelsScreen() {
         const previousPR = currentHist?.personalRecord ?? 0;
         const weightNum = Number(weightKg ?? 0);
         const repsNum = Number(reps ?? 0);
-        const qualifiesForPR = repsNum >= 5 && repsNum <= 8 && weightNum > 0;
+        const qualifiesForPR = loadMode === 'external_weight' && repsNum >= 5 && repsNum <= 8 && weightNum > 0;
         const isNewPR = qualifiesForPR && weightNum > previousPR;
         const updatedPR = isNewPR ? weightNum : previousPR;
         const lastWeight = completedLogs.reduce((max, s) => Math.max(max, s.weightKg ?? 0), 0);
+        const previousRecords = currentHist?.personalRecords ?? { externalWeightKg: previousPR, additionalWeightKg: 0, bodyweightMaxReps: 0 };
+        const isAdditionalPR = loadMode === 'bodyweight_plus_weight' && repsNum >= 5 && repsNum <= 8 && additionalWeightKg > Number(previousRecords.additionalWeightKg ?? 0);
+        const isBodyweightPR = loadMode === 'bodyweight' && repsNum > Number(previousRecords.bodyweightMaxReps ?? 0);
+        const personalRecords = {
+          externalWeightKg: updatedPR,
+          additionalWeightKg: isAdditionalPR ? additionalWeightKg : Number(previousRecords.additionalWeightKg ?? 0),
+          bodyweightMaxReps: isBodyweightPR ? repsNum : Number(previousRecords.bodyweightMaxReps ?? 0),
+        };
 
         setExerciseHistories((prev) => ({
           ...prev,
           [resolvedExerciseId]: {
             lastWeight,
             personalRecord: updatedPR,
+            personalRecords,
             lastReps: completedLogs.map((s) => s.reps ?? 0),
             lastSets: completedLogs.map((s, i) => ({
               setNumber: i + 1,
               weight: s.weightKg ?? 0,
+              loadMode: s.loadMode,
+              externalWeightKg: s.externalWeightKg,
+              additionalWeightKg: s.additionalWeightKg,
               repsCompleted: s.reps ?? 0,
               completed: true,
             })),
@@ -1187,13 +1514,18 @@ export default function SessionReelsScreen() {
             text2: `${items[currentIndex]?.exerciseId?.name ?? 'Exercice'} : ${weightNum} kg (5-8 reps)`,
             visibilityTime: 3500,
           });
+        } else if (isAdditionalPR || isBodyweightPR) {
+          Toast.show({
+            type: 'success',
+            text1: 'Nouveau record personnel',
+            text2: isBodyweightPR ? `${repsNum} reps au poids du corps` : `Poids du corps + ${additionalWeightKg} kg`,
+            visibilityTime: 3500,
+          });
         }
       }
 
-      // 2. Update local state
-      updateSetLog(currentIndex, setIdx, log);
-
-      const nextRunnerSet = isLastSet ? 0 : setIdx + 1;
+      const nextIncompleteAfterSave = updatedLogs.findIndex((set) => !set?.completed);
+      const nextRunnerSet = nextIncompleteAfterSave >= 0 ? nextIncompleteAfterSave : 0;
       const nextLogsMap = {
         ...setLogs,
         [currentIndex]: updatedLogs,
@@ -1220,12 +1552,24 @@ export default function SessionReelsScreen() {
               videoUrl: it.exerciseId.videoUrl,
               description: it.exerciseId.description,
               videoSource: it.exerciseId.videoSource,
+                    videoVariants: it.exerciseId.videoVariants,
+                    videoPosterUrl: it.exerciseId.videoPosterUrl,
+                    videoHlsUrl: it.exerciseId.videoHlsUrl,
+                    videoDurationSec: it.exerciseId.videoDurationSec,
+                    supportedLoadModes: it.exerciseId.supportedLoadModes,
+                    defaultLoadMode: it.exerciseId.defaultLoadMode,
+                    supportsAdditionalWeight: it.exerciseId.supportsAdditionalWeight,
+                    defaultWeight: it.exerciseId.defaultWeight,
             },
             alternatives: it.alternatives,
             sets: it.sets,
             reps: typeof it.reps === 'string' ? it.reps : formatReps(it.reps),
             restSeconds: it.restSeconds,
             order: it.order,
+          clientInstruction: it.clientInstruction,
+          instruction: it.instruction,
+          message: it.message,
+          notes: it.notes,
           })),
         },
         currentIndex,
@@ -1236,39 +1580,56 @@ export default function SessionReelsScreen() {
         startedAt: sessionStartTime.current,
         updatedAt: Date.now(),
       });
+      setSetLogs(nextLogsMap);
 
       // 4. Save to backend asynchronously (tolerant to offline/temporary connectivity loss)
       if (resolvedExerciseId) {
         const completedLogs = updatedLogs.filter((s) => s?.completed);
-        workoutService.upsertExerciseHistory(
+        const syncRequests: Promise<unknown>[] = [workoutService.upsertExerciseHistory(
           resolvedExerciseId,
           completedLogs.map((s, i) => ({
             setNumber: i + 1,
             reps: s.reps ?? 0,
             weightKg: s.weightKg ?? 0,
-            completedAt: new Date().toISOString(),
+            loadMode: s.loadMode,
+            externalWeightKg: s.externalWeightKg,
+            additionalWeightKg: s.additionalWeightKg,
+            completedAt: s.completedAt ?? new Date().toISOString(),
           }))
-        ).catch((err) => {
-          if (__DEV__) console.warn('upsertExerciseHistory sync pending:', err);
-        });
+        )];
 
         if (activeWorkoutSessionId) {
-          workoutService.updateExerciseSet(
+          syncRequests.push(workoutService.updateExerciseSet(
             activeWorkoutSessionId,
             resolvedExerciseId,
             setIdx + 1,
             Number(weightKg ?? 0),
-            reps
-          ).catch((err) => {
-            if (__DEV__) console.warn('updateExerciseSet sync pending:', err);
-          });
+            reps,
+            undefined,
+            { loadMode, externalWeightKg, additionalWeightKg }
+          ));
         }
+        void Promise.all(syncRequests).then(async () => {
+          const synced = { ...log, syncStatus: 'synced' as const };
+          updateSetLog(currentIndex, setIdx, synced);
+          await workoutProgressStorage.recordSet(date, sessionTemplateId, currentIndex, setIdx, synced);
+        }).catch(async (err) => {
+          const failed = { ...log, syncStatus: 'failed' as const };
+          updateSetLog(currentIndex, setIdx, failed);
+          await workoutProgressStorage.recordSet(date, sessionTemplateId, currentIndex, setIdx, failed);
+          if (__DEV__) console.warn('Workout set sync pending:', err);
+        });
       }
 
       setRecommendedWeightForNextSet(recommendedNextKg);
       setSavingSet(false);
       setSetRunnerVisible(false);
       isSavingSetRef.current = false;
+
+      if (wasAlreadyCompleted) {
+        Toast.show({ type: 'success', text1: 'Serie mise a jour', text2: formatSetLoad(log) });
+        return;
+      }
 
       if (isLastSet) {
         if (resolvedExerciseId && activeWorkoutSessionId) {
@@ -1277,9 +1638,13 @@ export default function SessionReelsScreen() {
         void playExerciseCompleteSound();
         if (currentIndex < items.length - 1) {
           setUnlockedIndex((prev) => Math.max(prev, currentIndex + 1));
+          setRestSeconds(Math.max(restSec, MIN_REST_SECONDS));
+          setManualRestTimer(false);
+          setRestVisible(true);
+        } else {
+          // Last set of the last exercise: workout complete! Finalize immediately without extra rest timer
+          void finalizeSession();
         }
-        setRestSeconds(Math.max(restSec, MIN_REST_SECONDS));
-        setRestVisible(true);
       } else {
         const nextIncomplete = updatedLogs.findIndex((s) => !s?.completed);
         setRunnerSetIndex(nextIncomplete >= 0 ? nextIncomplete : setIdx + 1);
@@ -1332,10 +1697,20 @@ export default function SessionReelsScreen() {
         exerciseId: resolvedExerciseId,
         exerciseName: item.exerciseId.name,
         sets: logs.filter((s) => s?.completed).map((s, i) => ({
-          setNumber: i + 1, reps: s.reps ?? 0, weightKg: s.weightKg ?? 0, completedAt: new Date().toISOString(),
+          setNumber: i + 1,
+          reps: s.reps ?? 0,
+          weightKg: s.weightKg ?? 0,
+          loadMode: s.loadMode,
+          externalWeightKg: s.externalWeightKg,
+          additionalWeightKg: s.additionalWeightKg,
+          completedAt: s.completedAt ?? new Date().toISOString(),
         })),
       };
-    }).filter((ex): ex is { exerciseId: string; exerciseName: string; sets: { setNumber: number; reps: number; weightKg: number; completedAt: string }[] } => !!ex.exerciseId);
+    }).filter((ex) => !!ex.exerciseId) as Array<{
+      exerciseId: string;
+      exerciseName: string;
+      sets: Array<{ setNumber: number; reps: number; weightKg: number; loadMode?: ExerciseLoadMode; externalWeightKg?: number; additionalWeightKg?: number; completedAt: string }>;
+    }>;
 
     let completionType: 'normal' | 'rattrapage' = (route.params as any)?.completionType ?? 'normal';
     let originalScheduledDate: string | undefined = (route.params as any)?.originalScheduledDate;
@@ -1358,9 +1733,24 @@ export default function SessionReelsScreen() {
         exercises: exerciseLogs,
         completionType,
         originalScheduledDate,
+        workoutSessionId: activeWorkoutSessionId,
       });
       workoutSessionId = result.sessionId ?? '';
-    } catch (err) {
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const code = err?.response?.data?.code;
+      if (status === 410 || (status === 409 && code === 'RATTRAPAGE_NOT_ELIGIBLE')) {
+        // Server is the source of truth: never mark this session as validated locally.
+        await useActiveWorkoutPersistStore.getState().clearPersisted(sessionTemplateId);
+        Toast.show({
+          type: 'error',
+          text1: status === 410 ? 'Séance expirée' : 'Rattrapage indisponible',
+          text2: err?.response?.data?.message,
+        });
+        allowNavigationWithoutConfirm.current = true;
+        navigation.goBack();
+        return;
+      }
       console.error('completeSession failed:', err);
     }
 
@@ -1382,7 +1772,8 @@ export default function SessionReelsScreen() {
       void fetchHistoryForExercise(id, true);
     });
 
-    await useActiveWorkoutPersistStore.getState().clearPersisted();
+    await useActiveWorkoutPersistStore.getState().clearPersisted(sessionTemplateId);
+    sessionCompleteRef.current = true;
     setPendingNavParams({
       sessionId: sessionTemplateId,
       workoutSessionId,
@@ -1391,7 +1782,7 @@ export default function SessionReelsScreen() {
     });
     void playWorkoutCompleteSound();
     setSessionComplete(true);
-  }, [fetchHistoryForExercise, items, sessionTemplateId, setLogs, route.params, playWorkoutCompleteSound]);
+  }, [fetchHistoryForExercise, items, sessionTemplateId, setLogs, route.params, playWorkoutCompleteSound, activeWorkoutSessionId, navigation]);
 
   const handleRestComplete = useCallback(async () => {
     if (isAdvancingRef.current) return;
@@ -1402,7 +1793,9 @@ export default function SessionReelsScreen() {
       if (currentIndex < items.length - 1) {
         const nextIndex = currentIndex + 1;
         setUnlockedIndex((prev) => Math.max(prev, nextIndex));
-        setItems((prev) => deduplicateWorkoutItems(prev));
+        setItems((prev) =>
+          applyEffectiveExercises(prev, originalSlots.current, slotSelections.current, lockedPerformedSlots(prev))
+        );
         setCurrentIndex(nextIndex);
         setRunnerSetIndex(0);
         flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
@@ -1425,12 +1818,24 @@ export default function SessionReelsScreen() {
                 videoUrl: it.exerciseId.videoUrl,
                 description: it.exerciseId.description,
                 videoSource: it.exerciseId.videoSource,
+                    videoVariants: it.exerciseId.videoVariants,
+                    videoPosterUrl: it.exerciseId.videoPosterUrl,
+                    videoHlsUrl: it.exerciseId.videoHlsUrl,
+                    videoDurationSec: it.exerciseId.videoDurationSec,
+                    supportedLoadModes: it.exerciseId.supportedLoadModes,
+                    defaultLoadMode: it.exerciseId.defaultLoadMode,
+                    supportsAdditionalWeight: it.exerciseId.supportsAdditionalWeight,
+                    defaultWeight: it.exerciseId.defaultWeight,
               },
               alternatives: it.alternatives,
               sets: it.sets,
               reps: typeof it.reps === 'string' ? it.reps : formatReps(it.reps),
               restSeconds: it.restSeconds,
               order: it.order,
+          clientInstruction: it.clientInstruction,
+          instruction: it.instruction,
+          message: it.message,
+          notes: it.notes,
             })),
           },
           currentIndex: nextIndex,
@@ -1459,33 +1864,17 @@ export default function SessionReelsScreen() {
   }, [currentIndex, finalizeSession, items, session, sessionTemplateId, activeWorkoutSessionId, setLogs]);
 
   const handleSwapAlternative = useCallback((alt: AlternativeOption) => {
-    setItems((prev) => {
-      const next = [...prev];
-      const oldItem = next[currentIndex];
-      const oldMain = oldItem.exerciseId;
-      const remainingAlts = (oldItem.alternatives || []).filter((a) => resolveExerciseId(a) !== alt._id);
-      next[currentIndex] = {
-        ...oldItem,
-        exerciseId: {
-          _id: alt._id,
-          name: alt.name,
-          muscleGroup: alt.muscleGroup,
-          equipment: alt.equipment,
-          videoUrl: alt.videoUrl,
-        },
-        alternatives: [
-          ...remainingAlts,
-          {
-            _id: oldMain._id,
-            name: oldMain.name,
-            muscleGroup: oldMain.muscleGroup,
-            equipment: oldMain.equipment,
-            videoUrl: oldMain.videoUrl,
-          },
-        ],
-      };
-      return deduplicateWorkoutItems(next);
-    });
+    const slotDefs: SlotDef<any>[] = Object.keys(originalSlots.current)
+      .map(Number)
+      .sort((x, y) => x - y)
+      .map((i) => ({
+        primary: { ...originalSlots.current[i].primary, _id: resolveExerciseId(originalSlots.current[i].primary) ?? '' },
+        alternatives: originalSlots.current[i].alternatives.map((a: any) => ({ ...a, _id: resolveExerciseId(a) ?? '' })),
+      }));
+    slotSelections.current = applyExplicitSelection(slotSelections.current, slotDefs, currentIndex, alt._id);
+    setItems((prev) =>
+      applyEffectiveExercises(prev, originalSlots.current, slotSelections.current, lockedPerformedSlots(prev))
+    );
     if (alt._id) {
       void fetchHistoryForExercise(alt._id, true);
     }
@@ -1493,7 +1882,7 @@ export default function SessionReelsScreen() {
     setRunnerSetIndex(0);
     setVideoErrors((prev) => ({ ...prev, [currentIndex]: false }));
     setShowAlternatives(false);
-  }, [currentIndex, fetchHistoryForExercise]);
+  }, [currentIndex, fetchHistoryForExercise, lockedPerformedSlots]);
 
   const handleTapVideo = useCallback(() => {
     setIsPaused((p) => !p);
@@ -1546,6 +1935,7 @@ export default function SessionReelsScreen() {
     const numSets = item.sets ?? 3;
     const logs = setLogs[index] ?? Array.from({ length: numSets }, () => ({ completed: false }));
     const doneCount = logs.filter((s) => s.completed).length;
+    const activeSetIndex = logs.findIndex((set) => !set?.completed);
     const hasStarted = doneCount > 0;
     const isExDone = doneCount >= numSets;
     const resolvedUri = resolveVideoUrl(ex.videoUrl);
@@ -1555,7 +1945,13 @@ export default function SessionReelsScreen() {
     const savingCurrent = historyKey ? !!savingCurrentByExercise[historyKey] : false;
     const isExerciseMuted = getIsExerciseMuted(index);
     const hasAlternatives = (item.alternatives?.length ?? 0) > 0;
-    const prValue = history?.personalRecord && history.personalRecord > 0 ? history.personalRecord : null;
+    const exerciseDefaultLoadMode = resolveDefaultLoadMode(ex);
+    const prValue = exerciseDefaultLoadMode === 'bodyweight'
+      ? history?.personalRecords?.bodyweightMaxReps ?? null
+      : exerciseDefaultLoadMode === 'bodyweight_plus_weight'
+        ? history?.personalRecords?.additionalWeightKg ?? null
+        : history?.personalRecords?.externalWeightKg ?? history?.personalRecord ?? null;
+    const prUnit = exerciseDefaultLoadMode === 'bodyweight' ? ' reps' : 'kg';
 
     return (
       <View style={styles.slide}>
@@ -1590,6 +1986,10 @@ export default function SessionReelsScreen() {
                   ref={activeVideoRef}
                   videoSource={ex.videoSource ?? (ex.videoUrl && /youtube\.com|youtu\.be/i.test(ex.videoUrl) ? 'youtube' : 'external')}
                   videoUrl={ex.videoUrl}
+                  variants={ex.videoVariants}
+                  posterUrl={ex.videoPosterUrl}
+                  hlsUrl={ex.videoHlsUrl}
+                  durationSec={ex.videoDurationSec}
                   resolvedUri={resolvedUri ?? undefined}
                   isActive
                   isPaused={isPaused}
@@ -1672,12 +2072,21 @@ export default function SessionReelsScreen() {
                   >
                     <Text style={styles.compactPrText}>PR</Text>
                     {prValue != null ? (
-                      <Text style={styles.compactPrValText}>{prValue}kg</Text>
+                      <Text style={styles.compactPrValText}>{prValue}{prUnit}</Text>
                     ) : null}
                   </TouchableOpacity>
                 </View>
               </View>
             )}
+
+            {/* Coach message: Messenger-style chat head (drag, tap to open/close, drag to X to remove) */}
+            {isActive && currentCoachInstruction ? (
+              <CoachChatHead
+                key={`coach-head-${index}`}
+                instruction={currentCoachInstruction}
+                slotKey={`${sessionTemplateId}:${index}`}
+              />
+            ) : null}
 
             {/* Swipe hint */}
             {isActive && (
@@ -1689,43 +2098,53 @@ export default function SessionReelsScreen() {
             {/* Left action rail: Slow Motion & Sound */}
             {isActive && (
               <View style={styles.leftRail}>
+                {/* Slow motion */}
                 <TouchableOpacity
                   style={[styles.railBtn, isSlowMotion && styles.railBtnActive]}
                   onPress={handleToggleSlowMotion}
                   activeOpacity={0.8}
-                  hitSlop={6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={isSlowMotion ? 'Désactiver le ralenti' : 'Ralenti 0.75×'}
                 >
                   <MaterialCommunityIcons
                     name="snail"
-                    size={24}
-                    color={isSlowMotion ? '#000' : '#fff'}
+                    size={20}
+                    color={isSlowMotion ? '#000' : 'rgba(255,255,255,0.9)'}
                   />
-                  <Text style={[styles.railBtnLabel, isSlowMotion && styles.railBtnLabelActive]}>
-                    {isSlowMotion ? '0.75x' : 'Ralenti'}
-                  </Text>
                 </TouchableOpacity>
 
+                {/* Mute / unmute */}
                 <TouchableOpacity
-                  style={styles.railBtn}
+                  style={[styles.railBtn, !isExerciseMuted && styles.railBtnAccent]}
                   onPress={() => handleToggleSound(index)}
                   activeOpacity={0.8}
-                  hitSlop={6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={isExerciseMuted ? 'Activer le son' : 'Couper le son'}
                 >
                   <Ionicons
                     name={isExerciseMuted ? 'volume-mute' : 'volume-high'}
-                    size={22}
-                    color={isExerciseMuted ? 'rgba(255,255,255,0.7)' : ACCENT}
+                    size={20}
+                    color={isExerciseMuted ? 'rgba(255,255,255,0.6)' : ACCENT}
                   />
-                  <Text style={[styles.railBtnLabel, !isExerciseMuted && { color: ACCENT }]}>
-                    {isExerciseMuted ? 'Muet' : 'Son'}
-                  </Text>
+                </TouchableOpacity>
+
+                {/* Quality */}
+                <TouchableOpacity
+                  style={styles.railBtn}
+                  onPress={() => setShowQualitySheet(true)}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Qualité vidéo"
+                >
+                  <Ionicons name="settings-outline" size={18} color="rgba(255,255,255,0.75)" />
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* Right action rail: History, Alternative & Coach Instruction */}
+            {/* Right action rail: History & Alternative */}
             {isActive && (
               <View style={styles.rightRail}>
+                {/* History */}
                 <TouchableOpacity
                   style={styles.railBtn}
                   onPress={() => {
@@ -1733,12 +2152,27 @@ export default function SessionReelsScreen() {
                     horizontalScrollRefs.current[index]?.scrollTo({ x: width, animated: true });
                   }}
                   activeOpacity={0.8}
-                  hitSlop={6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Historique"
                 >
-                  <Ionicons name="time-outline" size={22} color="#fff" />
-                  <Text style={styles.railBtnLabel}>Hist.</Text>
+                  <Ionicons name="time-outline" size={20} color="rgba(255,255,255,0.9)" />
                 </TouchableOpacity>
 
+                <TouchableOpacity
+                  style={styles.railBtn}
+                  onPress={() => {
+                    setRestSeconds(Math.max(item.restSeconds ?? MIN_REST_SECONDS, MIN_REST_SECONDS));
+                    setManualRestTimer(true);
+                    setRestVisible(true);
+                  }}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Minuteur de repos"
+                >
+                  <Ionicons name="timer-outline" size={20} color="rgba(255,255,255,0.9)" />
+                </TouchableOpacity>
+
+                {/* Swap alternative */}
                 <TouchableOpacity
                   style={[styles.railBtn, !hasAlternatives && styles.railBtnDisabled]}
                   onPress={() => {
@@ -1754,42 +2188,22 @@ export default function SessionReelsScreen() {
                     }
                   }}
                   activeOpacity={hasAlternatives ? 0.8 : 0.9}
-                  hitSlop={6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Exercice alternatif"
                 >
                   <Ionicons
                     name="swap-horizontal"
-                    size={22}
-                    color={hasAlternatives ? '#fff' : 'rgba(255,255,255,0.4)'}
+                    size={20}
+                    color={hasAlternatives ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)'}
                   />
-                  <Text style={[styles.railBtnLabel, !hasAlternatives && { color: 'rgba(255,255,255,0.4)' }]}>
-                    Alterner
-                  </Text>
                 </TouchableOpacity>
-
-                {currentCoachInstruction ? (
-                  <TouchableOpacity
-                    style={styles.railBtn}
-                    onPress={() => {
-                      setDismissedInstructions((prev) => {
-                        const next = { ...prev };
-                        delete next[index];
-                        return next;
-                      });
-                    }}
-                    activeOpacity={0.8}
-                    hitSlop={6}
-                  >
-                    <Ionicons name="megaphone-outline" size={22} color={ACCENT} />
-                    <Text style={[styles.railBtnLabel, { color: ACCENT }]}>Coach</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
             )}
 
             {/* Bottom overlay */}
             <View style={styles.bottomOverlay} pointerEvents="box-none">
               {/* Exercise name */}
-              <Text style={styles.exerciseName} numberOfLines={2}>{ex.name}</Text>
+              <Text style={styles.exerciseName} numberOfLines={1}>{ex.name}</Text>
 
               {/* Muscle + equipment badges */}
               <View style={styles.badges}>
@@ -1807,20 +2221,40 @@ export default function SessionReelsScreen() {
 
               {/* Sets progress */}
               <View style={styles.setsRow}>
-                <View style={styles.setDots}>
-                  {Array.from({ length: numSets }).map((_, si) => (
-                    <View
-                      key={si}
-                      style={[
-                        styles.setDot,
-                        si < doneCount ? styles.setDotDone : styles.setDotPending,
-                      ]}
-                    />
-                  ))}
+                <View style={styles.setDots} accessibilityRole="list">
+                  {Array.from({ length: numSets }).map((_, si) => {
+                    const completed = !!logs[si]?.completed;
+                    const current = !completed && si === activeSetIndex;
+                    return (
+                      <Pressable
+                        key={si}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Serie ${si + 1}, ${completed ? 'terminee, toucher pour modifier' : current ? 'en cours' : 'a faire'}`}
+                        onPress={() => {
+                          if (!completed) return;
+                          setRunnerSetIndex(si);
+                          setSetRunnerVisible(true);
+                        }}
+                        style={({ pressed }) => [
+                          styles.setProgressItem,
+                          completed && styles.setProgressDone,
+                          current && styles.setProgressCurrent,
+                          pressed && completed && { opacity: 0.72 },
+                        ]}
+                      >
+                        <Ionicons
+                          name={completed ? 'checkmark' : current ? 'ellipse' : 'ellipse-outline'}
+                          size={12}
+                          color={completed ? '#07120A' : current ? '#111' : 'rgba(255,255,255,0.6)'}
+                        />
+                        <Text style={[styles.setProgressText, (completed || current) && styles.setProgressTextActive]}>S{si + 1}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
                 <View style={styles.setPill}>
-                  <Ionicons name="repeat" size={11} color={ACCENT} />
-                  <Text style={styles.setPillText}>{doneCount}/{numSets} séries</Text>
+                  <Ionicons name={isExDone ? 'checkmark-done' : 'flash'} size={11} color={ACCENT} />
+                  <Text style={styles.setPillText}>{isExDone ? 'Termine' : `S${Math.max(0, activeSetIndex) + 1} en cours`}</Text>
                 </View>
               </View>
 
@@ -1856,12 +2290,24 @@ export default function SessionReelsScreen() {
                                     videoUrl: it.exerciseId.videoUrl,
                                     description: it.exerciseId.description,
                                     videoSource: it.exerciseId.videoSource,
+                    videoVariants: it.exerciseId.videoVariants,
+                    videoPosterUrl: it.exerciseId.videoPosterUrl,
+                    videoHlsUrl: it.exerciseId.videoHlsUrl,
+                    videoDurationSec: it.exerciseId.videoDurationSec,
+                    supportedLoadModes: it.exerciseId.supportedLoadModes,
+                    defaultLoadMode: it.exerciseId.defaultLoadMode,
+                    supportsAdditionalWeight: it.exerciseId.supportsAdditionalWeight,
+                    defaultWeight: it.exerciseId.defaultWeight,
                                   },
                                   alternatives: it.alternatives,
                                   sets: it.sets,
                                   reps: typeof it.reps === 'string' ? it.reps : formatReps(it.reps),
                                   restSeconds: it.restSeconds,
                                   order: it.order,
+          clientInstruction: it.clientInstruction,
+          instruction: it.instruction,
+          message: it.message,
+          notes: it.notes,
                                 })),
                               },
                               currentIndex: nextIndex,
@@ -1914,7 +2360,13 @@ export default function SessionReelsScreen() {
             }}
             onChangeSetWeight={(setIdx, value) => {
               const weightKg = parseNumericInput(value);
-              updateCurrentInputLog(index, setIdx, { weightKg });
+              const mode = logs[setIdx]?.loadMode ?? resolveDefaultLoadMode(ex);
+              updateCurrentInputLog(index, setIdx, {
+                weightKg,
+                loadMode: mode,
+                externalWeightKg: mode === 'external_weight' ? weightKg : 0,
+                additionalWeightKg: mode === 'bodyweight_plus_weight' ? weightKg : 0,
+              });
             }}
             onSaveCurrent={() => {
               void saveCurrentExerciseHistory(index);
@@ -2012,6 +2464,7 @@ export default function SessionReelsScreen() {
         data={items}
         renderItem={renderItem}
         keyExtractor={(item, i) => item.exerciseId._id + i}
+        extraData={[setLogs, currentIndex, unlockedIndex, videoErrors, sessionComplete]}
         pagingEnabled
         snapToInterval={height}
         snapToAlignment="start"
@@ -2031,8 +2484,8 @@ export default function SessionReelsScreen() {
       <RestTimer
         visible={restVisible}
         seconds={restSeconds}
-        onComplete={handleRestComplete}
-        onSkip={handleRestComplete}
+        onComplete={manualRestTimer ? () => { setRestVisible(false); setManualRestTimer(false); } : handleRestComplete}
+        onSkip={manualRestTimer ? () => { setRestVisible(false); setManualRestTimer(false); } : handleRestComplete}
         redBelowSeconds={20}
       />
       <SetRunnerOverlay
@@ -2040,6 +2493,9 @@ export default function SessionReelsScreen() {
         currentSetIndex={runnerSetIndex}
         totalSets={sets}
         previousLogs={previousLogsForRunner}
+        currentLog={logsForRunner[runnerSetIndex]}
+        supportedLoadModes={currentLoadModes}
+        defaultLoadMode={currentDefaultLoadMode}
         targetRepsMin={targetReps.min}
         targetRepsMax={targetReps.max}
         recommendedStartingWeight={runnerSetIndex > 0 ? recommendedWeightForNextSet : undefined}
@@ -2055,12 +2511,27 @@ export default function SessionReelsScreen() {
         onSelect={handleSwapAlternative}
         onClose={() => setShowAlternatives(false)}
       />
-      <CoachInstructionFloatingCard
-        visible={!!(currentCoachInstruction && !dismissedInstructions[currentIndex] && !sessionComplete && isHydrated && gymGate === 'ready')}
-        instruction={currentCoachInstruction ?? ''}
-        onDismiss={() => {
-          setDismissedInstructions((prev) => ({ ...prev, [currentIndex]: true }));
-        }}
+      <QualitySheet
+        visible={showQualitySheet}
+        onClose={() => setShowQualitySheet(false)}
+        variants={items[currentIndex]?.exerciseId?.videoVariants}
+        hasHls={!!items[currentIndex]?.exerciseId?.videoHlsUrl}
+      />
+      <QuitSessionModal
+        visible={quitVisible}
+        exerciseText={`Exercice ${Math.min(currentIndex + 1, items.length)}/${items.length}`}
+        setsText={(() => {
+          const done = Object.values(setLogs).flat().filter((l) => l?.completed).length;
+          const total = items.reduce((n, it) => n + (it.sets ?? 3), 0);
+          return `${done}/${total} séries`;
+        })()}
+        resumeUntilText={new Date(sessionStartTime.current + 20 * 60 * 60 * 1000).toLocaleString('fr-FR', {
+          weekday: 'long',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+        onStay={() => setQuitVisible(false)}
+        onQuit={confirmQuit}
       />
 
       {/* Session complete overlay */}
@@ -2069,10 +2540,8 @@ export default function SessionReelsScreen() {
           totalExercises={pendingNavParams.exercises.length}
           onNavigate={() => {
             allowNavigationWithoutConfirm.current = true;
+            sessionCompleteRef.current = true;
             navigation.replace('WorkoutCompletion', pendingNavParams);
-            setTimeout(() => {
-              allowNavigationWithoutConfirm.current = false;
-            }, 500);
           }}
         />
       )}
@@ -2193,101 +2662,105 @@ const styles = StyleSheet.create({
     zIndex: 15,
   },
 
-  // Left & Right Action Rails
+  // Left & Right Action Rails — compact 44×44, icon-only
   leftRail: {
     position: 'absolute',
-    left: 14,
-    bottom: 245,
+    left: 12,
+    top: Platform.OS === 'android' ? 104 : 114,
     zIndex: 22,
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   rightRail: {
     position: 'absolute',
-    right: 14,
-    bottom: 245,
+    right: 12,
+    top: Platform.OS === 'android' ? 104 : 114,
     zIndex: 22,
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   railBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: 'rgba(18,18,18,0.72)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.52)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.13)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.4,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 5,
   },
   railBtnActive: {
     backgroundColor: ACCENT,
     borderColor: ACCENT,
   },
+  railBtnAccent: {
+    borderColor: 'rgba(212,175,55,0.45)',
+  },
   railBtnDisabled: {
-    opacity: 0.5,
-  },
-  railBtnLabel: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.85)',
-    letterSpacing: 0.2,
-  },
-  railBtnLabelActive: {
-    color: '#000',
-    fontWeight: '800',
+    opacity: 0.38,
   },
 
-  // Bottom overlay
+  // Bottom overlay — leaner: less padding, smaller title
   bottomOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20, paddingBottom: 44, paddingTop: 18, zIndex: 20,
-    backgroundColor: 'rgba(0,0,0,0.22)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 16, paddingBottom: 72, paddingTop: 14, zIndex: 20,
+    // No solid background: just let the bottom LinearGradient do the job
   },
-  exerciseName: { fontSize: 30, fontWeight: '900', color: '#fff', marginBottom: 12, lineHeight: 36, letterSpacing: -0.5 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  exerciseName: { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 6, lineHeight: 26, letterSpacing: -0.3 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   badge: {
-    backgroundColor: 'rgba(212,175,55,0.18)',
-    borderWidth: 1, borderColor: 'rgba(212,175,55,0.35)',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    backgroundColor: 'rgba(212,175,55,0.15)',
+    borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
   },
-  badgeText: { color: ACCENT, fontSize: 12, fontWeight: '700' },
+  badgeText: { color: ACCENT, fontSize: 11, fontWeight: '700' },
 
   // Sets row
-  setsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  setDots: { flexDirection: 'row', gap: 6 },
-  setDot: { width: 9, height: 9, borderRadius: 5 },
-  setDotDone: { backgroundColor: ACCENT },
-  setDotPending: { backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
-  setPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(212,175,55,0.12)',
-    borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+  setsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  setDots: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', flex: 1 },
+  setProgressItem: {
+    minWidth: 46,
+    height: 34,
+    paddingHorizontal: 8,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
-  setPillText: { fontSize: 12, fontWeight: '800', color: ACCENT },
+  setProgressDone: { backgroundColor: '#35C56A', borderColor: '#35C56A' },
+  setProgressCurrent: { backgroundColor: ACCENT, borderColor: ACCENT },
+  setProgressText: { color: 'rgba(255,255,255,0.68)', fontSize: 11, fontWeight: '800' },
+  setProgressTextActive: { color: '#07120A' },
+  setPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(212,175,55,0.1)',
+    borderWidth: 1, borderColor: 'rgba(212,175,55,0.25)',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+  },
+  setPillText: { fontSize: 11, fontWeight: '800', color: ACCENT },
 
   // Action row
   actionRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 2 },
   altBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 13, paddingHorizontal: 16, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
+    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14,
   },
   altBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  mainCta: { flex: 1, borderRadius: 14, overflow: 'hidden', shadowColor: ACCENT, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6 },
+  mainCta: { flex: 1, borderRadius: 14, overflow: 'hidden', shadowColor: ACCENT, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   mainCtaDone: { shadowColor: '#22c55e' },
-  mainCtaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  mainCtaText: { fontSize: 17, fontWeight: '900', color: '#000' },
+  mainCtaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
+  mainCtaText: { fontSize: 16, fontWeight: '900', color: '#000' },
 });
 
 // ── History panel styles ──────────────────────────────────────────────────────
@@ -2606,6 +3079,74 @@ const sc = StyleSheet.create({
 });
 
 // ── Coach Instruction modal styles ────────────────────────────────────────────
+
+const qm = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 22 },
+  card: {
+    width: '100%', maxWidth: 380, borderRadius: 26, padding: 22, overflow: 'hidden',
+    backgroundColor: '#141416', borderWidth: 1, borderColor: 'rgba(212,175,55,0.28)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.6, shadowRadius: 24, elevation: 24,
+  },
+  glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 140 },
+  iconWrap: {
+    width: 60, height: 60, borderRadius: 30, alignSelf: 'center', marginBottom: 14,
+    backgroundColor: 'rgba(212,175,55,0.12)', borderWidth: 1, borderColor: 'rgba(212,175,55,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { fontSize: 22, fontWeight: '900', color: '#fff', textAlign: 'center', letterSpacing: -0.3 },
+  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: 6, marginBottom: 16 },
+  infoBox: {
+    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 14, paddingVertical: 4,
+  },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
+  infoIcon: {
+    width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(212,175,55,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  infoLabel: { fontSize: 11.5, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
+  infoValue: { fontSize: 15, color: '#fff', fontWeight: '800', marginTop: 1, textTransform: 'capitalize' },
+  infoDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
+  note: { fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginTop: 12, marginBottom: 18 },
+  primary: { borderRadius: 16, overflow: 'hidden' },
+  primaryGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
+  primaryText: { fontSize: 16, fontWeight: '900', color: '#000' },
+  secondary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10,
+    paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(248,113,113,0.4)',
+    backgroundColor: 'rgba(248,113,113,0.08)',
+  },
+  secondaryText: { fontSize: 14.5, fontWeight: '800', color: '#F87171' },
+});
+
+const chat = StyleSheet.create({
+  anchor: { position: 'absolute', left: 0, top: 0, width: HEAD_SIZE, height: HEAD_SIZE, zIndex: 60 },
+  head: {
+    width: HEAD_SIZE, height: HEAD_SIZE, borderRadius: HEAD_SIZE / 2, backgroundColor: ACCENT,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2.5, borderColor: '#fff',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 12,
+  },
+  badge: {
+    position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5,
+    backgroundColor: '#EF4444', borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center',
+  },
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  // incoming Messenger-style message: rounded, with the corner nearest the head flattened
+  card: {
+    position: 'absolute', top: 2,
+    backgroundColor: '#2B2B30', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 10,
+  },
+  cardName: { fontSize: 11.5, fontWeight: '800', color: ACCENT, marginBottom: 3 },
+  cardText: { fontSize: 15, lineHeight: 21, color: '#fff' },
+  trash: {
+    position: 'absolute', bottom: 64, left: width / 2 - 32, width: 64, height: 64, borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.65)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center', justifyContent: 'center', zIndex: 59,
+  },
+  trashActive: { backgroundColor: '#EF4444', borderColor: '#fff' },
+});
 
 const cim = StyleSheet.create({
   floatingContainer: {

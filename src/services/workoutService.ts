@@ -1,6 +1,7 @@
 import api from './api';
 import { getAuthToken } from '../utils/authStorage';
 import { getLocalDateKey } from '../utils/date';
+import type { ExerciseLoadMode } from '../utils/workoutLoad';
 
 export interface ExerciseSession {
   exerciseId: string | any;
@@ -85,7 +86,8 @@ export const workoutService = {
     setNumber: number,
     weight: number,
     repsCompleted: number,
-    notes?: string
+    notes?: string,
+    load?: { loadMode: ExerciseLoadMode; externalWeightKg?: number; additionalWeightKg?: number }
   ): Promise<{ workoutSession: WorkoutSession }> => {
     if (!(await checkAuth())) {
       throw new Error('Not authenticated');
@@ -97,6 +99,7 @@ export const workoutService = {
       weight,
       repsCompleted,
       notes,
+      ...load,
     });
     return response.data;
   },
@@ -209,10 +212,20 @@ export const workoutService = {
     exercises: Array<{
       exerciseId: string;
       exerciseName: string;
-      sets: Array<{ setNumber: number; reps: number; weightKg: number; completedAt: string }>;
+      sets: Array<{
+        setNumber: number;
+        reps: number;
+        weightKg?: number;
+        loadMode?: ExerciseLoadMode;
+        externalWeightKg?: number;
+        additionalWeightKg?: number;
+        completedAt: string;
+      }>;
     }>;
     completionType?: 'normal' | 'rattrapage';
     originalScheduledDate?: string;
+    /** In-progress WorkoutSession id; lets the server refuse sessions past their 20h window. */
+    workoutSessionId?: string;
   }): Promise<{ success: boolean; sessionId: string }> => {
     if (!(await checkAuth())) {
       throw new Error('Not authenticated');
@@ -234,6 +247,7 @@ export const workoutService = {
     history: {
       lastWeight: number;
       personalRecord?: number;
+      personalRecords?: { externalWeightKg?: number; additionalWeightKg?: number; bodyweightMaxReps?: number };
       lastReps: number[];
       lastSets: Array<{
         setNumber: number;
@@ -251,6 +265,9 @@ export const workoutService = {
       name: string;
       muscleGroup: string;
       defaultWeight: number;
+      supportedLoadModes?: ExerciseLoadMode[];
+      defaultLoadMode?: ExerciseLoadMode;
+      supportsAdditionalWeight?: boolean;
     } | null;
   }> => {
     if (!(await checkAuth())) {
@@ -262,7 +279,15 @@ export const workoutService = {
 
   upsertExerciseHistory: async (
     exerciseId: string,
-    sets: Array<{ setNumber?: number; reps: number; weightKg?: number; completedAt?: string }>
+    sets: Array<{
+      setNumber?: number;
+      reps: number;
+      weightKg?: number;
+      loadMode?: ExerciseLoadMode;
+      externalWeightKg?: number;
+      additionalWeightKg?: number;
+      completedAt?: string;
+    }>
   ): Promise<{ success: boolean }> => {
     if (!(await checkAuth())) {
       throw new Error('Not authenticated');
