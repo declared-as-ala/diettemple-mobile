@@ -1,7 +1,7 @@
 import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  AccessibilityInfo, Animated, Easing, Platform,
+  AccessibilityInfo, Animated, Easing, Image, Platform,
   StyleSheet, Text, useWindowDimensions, View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -115,6 +115,11 @@ export default function LuxurySplash({
             { opacity: entrance },
           ]}
         >
+          <Image
+            source={require('../../assets/splash.png')}
+            resizeMode="cover"
+            style={StyleSheet.absoluteFill}
+          />
           <VideoView
             player={player}
             style={s.splashVideo}
@@ -165,7 +170,7 @@ export default function LuxurySplash({
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: PALETTE.background },
   videoStage: { alignItems: 'center', justifyContent: 'center' },
-  splashVideo: { width: '90%', height: '90%' },
+  splashVideo: { width: '100%', height: '100%' },
   safeArea: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 24 },
   footer: { alignItems: 'center', flexShrink: 0 },
   loader: { width: '100%' },
