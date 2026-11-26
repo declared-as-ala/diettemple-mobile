@@ -83,3 +83,14 @@ export function subscribeToRealtimeConnected(handler: ConnectionHandler): () => 
 export function isRealtimeConnected(): boolean {
   return !!socket?.connected;
 }
+
+export type ComplaintUpdatedPayload = { complaintId: string; kind: 'created' | 'reply' | 'status' | 'client_reply' };
+
+/** A complaint of this client got a reply or a status change (the server pushes it to the client's room). */
+export function subscribeToComplaintUpdated(handler: (payload: ComplaintUpdatedPayload) => void): () => void {
+  if (!socket) return () => {};
+  socket.on(REALTIME_EVENTS.complaintUpdated, handler);
+  return () => {
+    socket?.off(REALTIME_EVENTS.complaintUpdated, handler);
+  };
+}

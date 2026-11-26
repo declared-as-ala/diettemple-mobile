@@ -377,6 +377,7 @@ export default function ProfileScreen() {
           {/* ── Support ──────────────────────────────────────────────── */}
           <Text style={styles.sectionLabel}>SUPPORT</Text>
           <View style={styles.menuCard}>
+            <MenuRow icon="chatbubbles-outline" label="Réclamations et assistance" onPress={() => navigation.navigate('ComplaintsList')} />
             <MenuRow icon="help-circle-outline" label="Aide & Contact" onPress={() => navigation.navigate('HelpSupport')} />
             <MenuRow icon="shield-checkmark-outline" label="Politique de confidentialité" onPress={() => Linking.openURL('https://diettemple.tn/privacy-policy').catch(() => {})} />
             <MenuRow icon="gavel" iconLib="material" label="Mentions légales" onPress={() => navigation.navigate('LegalNotices')} />

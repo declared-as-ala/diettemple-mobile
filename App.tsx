@@ -44,6 +44,9 @@ import EditProfileScreen from './src/screens/EditProfileScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import DeleteAccountScreen from './src/screens/DeleteAccountScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
+import ComplaintsListScreen from './src/screens/ComplaintsListScreen';
+import NewComplaintScreen from './src/screens/NewComplaintScreen';
+import ComplaintDetailScreen from './src/screens/ComplaintDetailScreen';
 import LegalNoticesScreen from './src/screens/LegalNoticesScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
 import SearchProductsScreen from './src/screens/SearchProductsScreen';
@@ -122,6 +125,9 @@ function AppContent() {
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+          <Stack.Screen name="ComplaintsList" component={ComplaintsListScreen} />
+          <Stack.Screen name="NewComplaint" component={NewComplaintScreen} />
+          <Stack.Screen name="ComplaintDetail" component={ComplaintDetailScreen} />
           <Stack.Screen name="LegalNotices" component={LegalNoticesScreen} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="SearchProducts" component={SearchProductsScreen} />

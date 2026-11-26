@@ -75,6 +75,9 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   LegalNotices: undefined;
   HelpSupport: undefined;
+  ComplaintsList: undefined;
+  NewComplaint: undefined;
+  ComplaintDetail: { id: string };
   EditProfile: { field?: 'name' | 'age' | 'sexe' | 'poids' | 'taille' | 'objectif'; currentValue?: string } | undefined;
   Boutique: undefined;
   ProductDetail: { productId: string };
