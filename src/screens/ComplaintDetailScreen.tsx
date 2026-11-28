@@ -15,6 +15,9 @@ import {
   complaintErrorMessage, complaintsService, type ComplaintAttachment, type ComplaintDetail, type ComplaintMessage, type PickedImage,
 } from '../services/complaintsService';
 import { STATUS_COLORS } from './ComplaintsListScreen';
+import { SkeletonList } from '../components/network/Skeleton';
+import { ErrorState } from '../components/network/ScreenState';
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 
 const ACCENT = BRAND_YELLOW;
 const MAX_IMAGES = 4;
@@ -40,7 +43,7 @@ export default function ComplaintDetailScreen() {
   const insets = useSafeAreaInsets();
   const [c, setC] = useState<ComplaintDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [text, setText] = useState('');
   const [images, setImages] = useState<PickedImage[]>([]);
   const [sending, setSending] = useState(false);
@@ -52,13 +55,14 @@ export default function ComplaintDetailScreen() {
       setC(await complaintsService.get(id));
       setError(null);
     } catch (e) {
-      if (!silent) setError((e as any)?.response?.status === 404 ? 'Cette réclamation est introuvable.' : complaintErrorMessage(e));
+      if (!silent) setError(e ?? new Error('load'));
     } finally {
       setLoading(false);
     }
   }, [id]);
 
   useEffect(() => { void load(false); }, [load]);
+  useRefetchOnReconnect(() => load(true));
   // A team reply arrives in real time (opening the screen also marks it as read on the server).
   useEffect(() => subscribeToComplaintUpdated((p) => { if (p.complaintId === id) void load(true); }), [id, load]);
 
@@ -132,12 +136,9 @@ export default function ComplaintDetailScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={ACCENT} /></View>
+        <SkeletonList count={3} />
       ) : error || !c ? (
-        <View style={styles.center}>
-          <Text style={[styles.err, { color: colors.text }]}>{error ?? 'Réclamation introuvable.'}</Text>
-          <TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); void load(false); }} accessibilityRole="button"><Text style={styles.retryText}>Réessayer</Text></TouchableOpacity>
-        </View>
+        <ErrorState error={error ?? { response: { status: 404 } }} onRetry={() => { setLoading(true); return load(false); }} />
       ) : (
         <FlatList ref={listRef} data={c.messages} keyExtractor={(m) => m.id} renderItem={renderMessage} contentContainerStyle={styles.list} />
       )}

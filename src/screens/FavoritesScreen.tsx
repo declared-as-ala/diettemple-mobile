@@ -1,3 +1,4 @@
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 import { BRAND_YELLOW } from '../constants/brand';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -39,6 +40,7 @@ export default function FavoritesScreen() {
   useEffect(() => {
     fetchFavorites();
   }, []);
+  useRefetchOnReconnect(() => fetchFavorites());
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

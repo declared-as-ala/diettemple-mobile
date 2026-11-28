@@ -7,6 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BRAND_YELLOW } from '../constants/brand';
 import { useTheme } from '../context/ThemeContext';
 import { subscribeToComplaintUpdated } from '../services/realtimeSocket';
+import { SkeletonList } from '../components/network/Skeleton';
+import { ErrorState } from '../components/network/ScreenState';
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 import { complaintErrorMessage, complaintsService, type ComplaintStatus, type ComplaintSummary } from '../services/complaintsService';
 
 const ACCENT = BRAND_YELLOW;
@@ -37,7 +40,7 @@ export default function ComplaintsListScreen() {
   const [items, setItems] = useState<ComplaintSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   const load = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'silent') => {
     if (mode === 'initial') setLoading(true);
@@ -46,7 +49,7 @@ export default function ComplaintsListScreen() {
       setItems(await complaintsService.list());
       setError(null);
     } catch (e) {
-      if (mode !== 'silent') setError(complaintErrorMessage(e));
+      if (mode !== 'silent') setError(e ?? new Error('load'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,6 +60,7 @@ export default function ComplaintsListScreen() {
   useFocusEffect(useCallback(() => { void load(items.length === 0 ? 'initial' : 'silent'); }, [load, items.length]));
   // A reply or status change arrives in real time.
   useEffect(() => subscribeToComplaintUpdated(() => void load('silent')), [load]);
+  useRefetchOnReconnect(() => load('silent'));
 
   const renderItem = ({ item }: { item: ComplaintSummary }) => (
     <TouchableOpacity
@@ -96,14 +100,9 @@ export default function ComplaintsListScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={ACCENT} /></View>
+        <SkeletonList count={4} />
       ) : error && items.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>Chargement impossible</Text>
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{error}</Text>
-          <TouchableOpacity style={styles.retry} onPress={() => void load('initial')} accessibilityRole="button"><Text style={styles.retryText}>Réessayer</Text></TouchableOpacity>
-        </View>
+        <ErrorState error={error} onRetry={() => load('initial')} />
       ) : (
         <FlatList
           data={items}

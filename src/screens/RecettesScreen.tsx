@@ -1,3 +1,4 @@
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 import { BRAND_YELLOW } from '../constants/brand';
 /**
  * Recettes: full-width cards, search + filter chips, add-to-journal with portion selector.
@@ -435,6 +436,7 @@ export default function RecettesScreen() {
     finally { if (!controller.signal.aborted) { setLoading(false); setRefreshing(false); } }
   }, []);
   useFocusEffect(useCallback(() => { if (token) { void load(); void fetchFavorites(); } return () => request.current?.abort(); }, [token, load, fetchFavorites]));
+  useRefetchOnReconnect(() => { void load(); void fetchFavorites(); });
   const filtered = useMemo(() => selectRecipes(recipes, selection, search, favoriteIds, favoritesOnly), [recipes, selection, search, favoriteIds, favoritesOnly]);
   const reset = () => { setSelection(DEFAULT_RECIPE_SELECTION); setSearch(''); setFavoritesOnly(false); };
   const active = [selection.category !== 'all', selection.prep !== 'all', selection.days !== 'all', selection.ingredients.length > 0, selection.sort !== 'recent'].filter(Boolean).length;

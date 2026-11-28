@@ -1,3 +1,4 @@
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 import { BRAND_YELLOW } from '../constants/brand';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -256,6 +257,8 @@ export default function NutritionScreen() {
       }
     }
   }, [token, fetchFavorites]);
+
+  useRefetchOnReconnect(() => loadData(selectedDateKey));
 
   useFocusEffect(
     useCallback(() => {

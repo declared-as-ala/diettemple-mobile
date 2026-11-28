@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { getAuthToken, deleteAuthToken } from '../utils/authStorage';
 import { getApiBaseUrl } from '../config/api.config';
+import { connectivity } from '../network/connectivityService';
+import { cacheKey, isCacheable, readCache, writeCache } from '../network/apiCache';
+import { errorKindOf } from '../network/classifyError';
 
 /**
  * Registered by App.tsx after stores are ready.
@@ -67,6 +70,9 @@ function getErrorMessage(error: any): string {
 
 // Add token to requests (except for public endpoints)
 api.interceptors.request.use(async (config) => {
+  (config as any)._startedAt = Date.now();
+  // Known offline: give up quickly instead of leaving a spinner for 30 s (the request still doubles as a reconnection probe).
+  if (connectivity.getState().status === 'offline') config.timeout = Math.min(config.timeout ?? REQUEST_TIMEOUT_MS, 8000);
   const baseURL = config.baseURL ?? fullBaseUrl;
   const endpoint = config.url ?? '';
   const fullUrl = endpoint ? `${baseURL.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}` : baseURL;
@@ -107,9 +113,20 @@ api.interceptors.request.use(async (config) => {
 
 // Improve error handling: distinguish network / timeout / 401 / 403 / server; log details; show French message
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const cfg: any = response.config;
+    connectivity.reportRequest({ durationMs: Date.now() - (cfg?._startedAt ?? Date.now()), reachedServer: true });
+    // Keep the last good answer so the content stays available when the connection drops.
+    if (isCacheable(cfg?.method, cfg?.url, cfg?.responseType)) void writeCache(cacheKey(cfg.url, cfg.params), response.data);
+    return response;
+  },
   async (error) => {
     const config = error.config;
+    {
+      const code0 = error.code ?? '';
+      const timedOut = code0 === 'ECONNABORTED' || code0 === 'ETIMEDOUT' || /timeout/i.test(error.message ?? '');
+      connectivity.reportRequest({ durationMs: Date.now() - ((config as any)?._startedAt ?? Date.now()), reachedServer: !!error.response, timedOut });
+    }
     const baseURL = config?.baseURL ?? fullBaseUrl;
     const endpoint = config?.url ?? '';
     const method = config?.method?.toUpperCase() ?? 'GET';
@@ -147,10 +164,17 @@ api.interceptors.response.use(
       }
     } else {
       // Transient network retry for GET requests
-      if (config && !config._isRetry && method === 'GET' && error.code !== 'ECONNABORTED') {
+      if (config && !config._isRetry && method === 'GET' && error.code !== 'ECONNABORTED' && connectivity.getState().status !== 'offline') {
         config._isRetry = true;
         await new Promise((resolve) => setTimeout(resolve, 800));
         return api(config);
+      }
+      // Offline-first for reads: serve the last good answer instead of an error (a banner tells the user).
+      if (config && isCacheable(config.method, config.url, config.responseType)) {
+        const hit = await readCache(cacheKey(config.url, config.params));
+        if (hit) {
+          return { data: hit.data, status: 200, statusText: 'OK (cache)', headers: { 'x-from-cache': '1', 'x-cached-at': String(hit.at) }, config, request: undefined };
+        }
       }
       // No response = network error, timeout, or server unreachable — log details for APK debugging
       const code = error.code ?? 'UNKNOWN';
@@ -175,6 +199,7 @@ api.interceptors.response.use(
     if (!error.response.data?.message) {
       error.response.data = { ...error.response.data, message: userMessage };
     }
+    error.isOffline = !error.response?.status && errorKindOf(error) === 'offline';
     return Promise.reject(error);
   }
 );

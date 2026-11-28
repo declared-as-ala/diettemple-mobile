@@ -16,7 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { RootStackParamList } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { ordersService, Order } from '../services/ordersService';
-import AppLoader from '../components/AppLoader';
+import { SkeletonList } from '../components/network/Skeleton';
+import { ErrorState } from '../components/network/ScreenState';
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 
 type OrdersListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'OrdersList'>;
 
@@ -27,18 +29,22 @@ export default function OrdersListScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadFailure, setLoadFailure] = useState<unknown>(null);
 
   useEffect(() => {
     loadOrders();
   }, []);
+  useRefetchOnReconnect(() => loadOrders());
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const ordersData = await ordersService.getOrders();
       setOrders(ordersData);
+      setLoadFailure(null);
     } catch (error) {
       console.error('Error loading orders:', error);
+      setLoadFailure(error);
     } finally {
       setLoading(false);
     }
@@ -93,9 +99,16 @@ export default function OrdersListScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.background === '#000000' ? 'light' : 'dark'} />
-        <View style={styles.loadingContainer}>
-          <AppLoader variant="inline" size="lg" label="Chargement…" />
-        </View>
+        <SkeletonList count={5} style={{ paddingTop: 90 }} />
+      </View>
+    );
+  }
+
+  if (orders.length === 0 && loadFailure) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.background === '#000000' ? 'light' : 'dark'} />
+        <ErrorState error={loadFailure} onRetry={loadOrders} />
       </View>
     );
   }

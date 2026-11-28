@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+﻿import { useRefetchOnReconnect } from '../network/NetworkProvider';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -37,6 +38,7 @@ export default function CartScreen() {
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
   const total = Math.max(0, subtotal - discount + delivery);
   useEffect(() => { void fetchCart(); }, [fetchCart]);
+  useRefetchOnReconnect(() => { void fetchCart(); });
   const change = async (id: string, quantity?: number) => {
     if (lock.current) return;
     lock.current = true; setBusy(true);

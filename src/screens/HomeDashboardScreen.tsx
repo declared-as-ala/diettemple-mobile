@@ -1,3 +1,5 @@
+import { ErrorState } from '../components/network/ScreenState';
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useCallback, useEffect,useMemo,
    useRef } from 'react';
@@ -274,6 +276,7 @@ export default function HomeDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<unknown>(null);
   const [safeMode, setSafeMode] = useState(true);
   const renderHomeLogged = useRef(false);
 
@@ -283,6 +286,8 @@ export default function HomeDashboardScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [weekPlan, setWeekPlan] = useState<{ weekNumber: number; levelName?: string; days?: WeekPlanDay[] } | null>(null);
   const [dayProgressMap, setDayProgressMap] = useState<Record<string, DayProgressStatus>>({});
+
+  useRefetchOnReconnect(() => loadToday());
 
   useEffect(() => {
     const t = setTimeout(() => setSafeMode(false), SAFE_STARTUP_DEFER_MS);
@@ -353,8 +358,10 @@ export default function HomeDashboardScreen() {
   const loadToday = useCallback(async (date?: string, isInitialLoad = false) => {
     if (!token || !isAuthenticated) return;
     setError(null);
+    setLoadFailure(null);
     try {
       const [data, weeklySummary, planData] = await Promise.all([
+
         todayService.getToday(date),
         meService.getHomeWeeklySummary(),
         meService.getActivePlan(),
@@ -380,9 +387,9 @@ export default function HomeDashboardScreen() {
       }
       // selectedPlanWeek is now derived at render time from planStartDate — no manual set needed
     } catch (e) {
-      setError('Erreur de chargement');
-      setDashboard(null);
-      setHomeWeeklySummary(null);
+      setError('Impossible de charger vos données.');
+      setLoadFailure(e);
+      // keep what is already on screen (stale beats blank)
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -703,6 +710,16 @@ export default function HomeDashboardScreen() {
       <View style={{ flex: 1, backgroundColor: '#050505' }}>
         <StatusBar style="light" />
         <HomeSkeleton />
+      </View>
+    );
+  }
+
+  // First load failed and nothing is cached: a clear French panel with "Réessayer", never a half-empty page.
+  if (!dashboard && error) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#050505' }}>
+        <StatusBar style="light" />
+        <ErrorState error={loadFailure} onRetry={() => { setLoading(true); return loadToday(undefined, true); }} />
       </View>
     );
   }

@@ -1,3 +1,4 @@
+import { useRefetchOnReconnect } from '../network/NetworkProvider';
 import { BRAND_YELLOW } from '../constants/brand';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIndicator, useWindowDimensions } from 'react-native';
@@ -59,6 +60,7 @@ export default function BoutiqueScreen() {
     minPrice: filters.minPrice, maxPrice: filters.maxPrice,
   }), [filters.category, filters.sort, filters.inStock, filters.minPrice, filters.maxPrice, debouncedSearch]);
   useEffect(() => { fetchProducts(queryFilters); }, [queryFilters, fetchProducts]);
+  useRefetchOnReconnect(() => { fetchCategories(); fetchProducts(queryFilters); });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

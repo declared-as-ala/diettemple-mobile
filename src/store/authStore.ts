@@ -106,6 +106,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       nutritionMod.useNutritionStore.getState().clear();
       subscriptionMod.useSubscriptionStore.getState().clear();
       disconnectRealtimeSocket();
+      void import('../network/apiCache').then((m) => m.clearApiCache());
       set({ user: null, token: null, isAuthenticated: false, authStatus: 'LOGGED_OUT' });
     } catch {
       disconnectRealtimeSocket();

@@ -19,6 +19,10 @@ import { SnackbarProvider } from './src/components/Snackbar';
 import { registerUnauthorizedHandler } from './src/services/api';
 import { RootErrorBoundary } from './src/components/RootErrorBoundary';
 import LuxurySplash from './src/components/LuxurySplash';
+import { NetworkProvider, useNetwork } from './src/network/NetworkProvider';
+import { connectivity } from './src/network/connectivityService';
+import NetworkBanner from './src/components/network/NetworkBanner';
+import OfflineScreen from './src/components/network/OfflineScreen';
 import WorkoutResumeBar from './src/components/workout/WorkoutResumeBar';
 import { usePreventScreenCapture } from './src/hooks/usePreventScreenCapture';
 import {
@@ -90,6 +94,14 @@ const navTheme = (dark: boolean, bg: string) => ({
     notification: '#D4AF37',
   },
 });
+
+/** Logged-out users cannot do anything without the Internet (login, sign-up…): show the full-screen offline state. */
+function OfflineGate() {
+  const { isOffline, retry, checking } = useNetwork();
+  const authStatus = useAuthStore((s) => s.authStatus);
+  if (!isOffline || authStatus === 'LOGGED_IN') return null;
+  return <OfflineScreen onRetry={retry} checking={checking} />;
+}
 
 function AppContent() {
   const { isDarkMode, colors } = useTheme();
@@ -168,6 +180,8 @@ function AppContent() {
           <WorkoutResumeBar />
       </NavigationContainer>
       </SnackbarProvider>
+      <NetworkBanner />
+      <OfflineGate />
       <Toast
         position="top"
         topOffset={60}
@@ -221,6 +235,18 @@ function AppInner() {
 
   useEffect(() => {
     startupSteps.appRender();
+  }, []);
+
+  // Connection is back: reload what the app depends on, without restarting it.
+  useEffect(() => {
+    return connectivity.onReconnect(() => {
+      const { authStatus: status, token: tk } = useAuthStore.getState();
+      if (status !== 'LOGGED_IN') return;
+      if (tk && !isRealtimeConnected()) connectRealtimeSocket(tk);
+      useAuthStore.getState().refreshMe().catch(() => {});
+      useSubscriptionStore.getState().bootSubscription().catch(() => {});
+      useNutritionStore.getState().fetchIfNeeded(getLocalDateKey(new Date())).catch(() => {});
+    });
   }, []);
 
   useEffect(() => {
@@ -372,7 +398,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <RootErrorBoundary>
-        <AppInner />
+        <NetworkProvider>
+          <AppInner />
+        </NetworkProvider>
       </RootErrorBoundary>
     </GestureHandlerRootView>
   );

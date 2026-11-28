@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "test:network": "node scripts/network-tests/run.js && node scripts/network-tests/cache.js && node scripts/network-tests/api.js",
     "start": "expo start --offline",
     "start:clean": "expo start -c --offline",
     "android": "expo run:android",
