@@ -94,3 +94,14 @@ export function subscribeToComplaintUpdated(handler: (payload: ComplaintUpdatedP
     socket?.off(REALTIME_EVENTS.complaintUpdated, handler);
   };
 }
+
+export type VoiceMessagePayload = { exerciseId: string; messageId: string; kind: 'new' | 'deleted' };
+
+/** The coach sent or deleted a voice message (pushed to this client, or to everyone for exercise-wide messages). */
+export function subscribeToVoiceMessage(handler: (payload: VoiceMessagePayload) => void): () => void {
+  if (!socket) return () => {};
+  socket.on(REALTIME_EVENTS.voiceMessage, handler);
+  return () => {
+    socket?.off(REALTIME_EVENTS.voiceMessage, handler);
+  };
+}

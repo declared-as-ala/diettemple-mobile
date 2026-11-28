@@ -1,6 +1,7 @@
 export const REALTIME_EVENTS = {
   userUpdated: 'user:updated',
   complaintUpdated: 'complaint:updated',
+  voiceMessage: 'voice:message',
 } as const;
 
 export type RealtimeSubscriptionStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELED' | 'NONE';

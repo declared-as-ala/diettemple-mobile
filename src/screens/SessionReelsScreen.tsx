@@ -37,6 +37,7 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList, type VideoSourceType } from '../types';
 import { resolveVideoUrl } from '../config/api.config';
 import RestTimer from '../components/RestTimer';
+import ExerciseVoiceHead from '../components/workout/ExerciseVoiceHead';
 import ReelsVideoPlayer, { type ReelsVideoPlayerHandle } from '../components/workout/ReelsVideoPlayer';
 import QualitySheet from '../components/workout/QualitySheet';
 import { useActiveWorkoutPersistStore } from '../store/activeWorkoutPersistStore';
@@ -2086,6 +2087,11 @@ export default function SessionReelsScreen() {
                 instruction={currentCoachInstruction}
                 slotKey={`${sessionTemplateId}:${index}`}
               />
+            ) : null}
+
+            {/* Coach voice messages for this exercise (Messenger-style chat) */}
+            {isActive && (item as any)?.exerciseId?._id ? (
+              <ExerciseVoiceHead key={`coach-voice-${index}`} exerciseId={String((item as any).exerciseId._id)} />
             ) : null}
 
             {/* Swipe hint */}
